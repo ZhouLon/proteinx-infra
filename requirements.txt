@@ -2,3 +2,5 @@ flask
 biopython
 matplotlib
 torch
+pandas
+openpyxl
