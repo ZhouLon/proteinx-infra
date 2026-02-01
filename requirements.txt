@@ -4,4 +4,5 @@ biopython
 matplotlib
 torch
 pandas
+scikit-learn
 openpyxl

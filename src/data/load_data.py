@@ -6,23 +6,24 @@ from typing import Tuple, Optional, Union
 
 def load_table(
         file_path : Path,
-        feature_index : int ,
-        label_index : int = None,
-        header_index : int = 0 
+        load_mode : dict,
         )->Tuple[Union[StringArray, np.ndarray], Optional[np.ndarray]]:
     
     """
     输入表格型数据，自动读取后返回 可迭代的 成对的 特征和标签
     Args:
         file_path: 文件路径
-        feature_index: 特征列索引
-        label_index: 标签列索引，可选
-        header_index: 表头行索引，0表示第一行，None表示无表头
+        load_mode: {
+            feature_index: 特征列索引
+            label_index: 标签列索引，可选
+            header_index: 表头行索引，0表示第一行，None表示无表头
+            }
     
     Returns:
         Tuple[Union[StringArray, np.ndarray], Optional[np.ndarray]]:
 
     """
+    feature_index,label_index,header_index=load_mode["feature_index"],load_mode["label_index"],load_mode["header_index"]
     # 限制接受的文件类型
     file_type_list=['.csv','.xlsx']
     file_type = file_path.suffix

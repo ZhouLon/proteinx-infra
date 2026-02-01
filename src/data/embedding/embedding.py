@@ -9,7 +9,7 @@ import numpy as np
 
 def vocab(
         seq_list: List[str]
-        ) -> Tuple[Dict[str, int], List[List[int]]]:
+        ) -> Tensor:
     """
     生成词汇表索引
     
@@ -71,7 +71,7 @@ def plm_emb() -> None:
 def emb(
         seq_list: List[str], 
         emb_type_name: str
-        ) -> Union[Tensor, Tuple[Dict[str, int], List[List[int]]], None]:
+        ) -> Union[Tensor,Tuple[Tensor]]:
     """
     最外层的接口，负责指引
     
