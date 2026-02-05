@@ -1,0 +1,814 @@
+<!-- 
+  ============================================================================
+  Proteinx 数据库管理系统前端页面
+  ============================================================================
+  这是一个蛋白质数据库的管理页面，支持：
+  - 查询数据（可自定义条件）
+  - 上传 CSV 文件添加数据
+  - 删除选中数据
+  - 分页显示结果
+  - 导出查询条件
+  ============================================================================
+-->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    
+    <!-- 视口设置：让页面在手机等设备上也能正常显示（响应式设计） -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proteinx DB</title>
+    
+    <!-- 导入 Bootstrap 框架的 CSS（用于美化页面） -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- 导入 Bootstrap 图标库（提供各种漂亮的小图标） -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        /* ============================================================================
+           自定义样式：美化页面外观
+           ============================================================================ */
+        
+        body {
+            background-color: #f8f9fa;  /* 页面背景：浅灰色，让眼睛舒服 */
+            padding: 20px;                /* 页面内边距：周围空间 */
+        }
+        
+        .container-fluid {
+            max-width: 1400px;            /* 最大宽度限制：防止超宽屏显示过宽 */
+        }
+        
+        /* 样式：筛选卡片（查询条件区域） */
+        .filter-card {
+            background: white;            /* 白色背景 */
+            border-radius: 10px;          /* 圆角：让卡片看起来柔和 */
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);  /* 阴影效果：增加深度感 */
+            padding: 20px;                /* 内部空间 */
+            margin-bottom: 20px;          /* 下方空间（和下一个元素的间距） */
+        }
+        
+        /* 样式：结果卡片（数据显示区域） */
+        .results-card {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 20px;
+        }
+        
+        /* 样式：一组筛选项 */
+        .filter-group {
+            margin-bottom: 15px;          /* 筛选条件之间的间距 */
+        }
+        
+        /* 样式：按钮组（横向排列） */
+        .action-buttons {
+            display: flex;                /* 使用 flex 布局，按钮横向排列 */
+            gap: 10px;                    /* 按钮之间的间距 */
+            flex-wrap: wrap;              /* 屏幕太窄时，按钮会换行 */
+        }
+        
+        /* 样式：表格容器（主要是处理超宽表格） */
+        .table-container {
+            overflow-x: auto;             /* 如果表格太宽，显示滚动条 */
+        }
+        
+        /* 样式：已选择的表格行 */
+        .selected-row {
+            background-color: #e3f2fd !important;  /* 浅蓝色背景，标记已选中 */
+        }
+        
+        /* 样式：分页控制区 */
+        .pagination-controls {
+            display: flex;                /* 横向布局 */
+            justify-content: space-between;  /* 左右对齐：左边一个、中间一个、右边一个 */
+            align-items: center;          /* 垂直居中 */
+            margin-top: 20px;             /* 上方空间 */
+        }
+        
+        /* 样式：统计信息（小字体、灰色） */
+        .stats {
+            font-size: 0.9em;             /* 较小的字体 */
+            color: #666;                  /* 灰色文字 */
+        }
+        
+        /* 样式：删除确认文本 */
+        .confirm-delete {
+            color: #dc3545;               /* 红色（表示危险操作） */
+            font-weight: bold;            /* 加粗 */
+        }
+        
+        /* 样式：运算符选择框（设置最小宽度） */
+        .operator-select {
+            min-width: 100px;             /* 最小宽度：确保下拉框足够宽 */
+        }
+    </style>
+</head>
+<body>
+    <!-- 页面主容器：最大宽度 1400px，超过则设定宽度 -->
+    <div class="container-fluid">
+        <!-- 页面标题 -->
+        <h1 class="mb-4">Proteinx DataBase 数据库管理系统</h1>
+        
+        <!-- ============================================================================
+             第一部分：条件查询区域
+             功能：让用户可以自定义查询条件（比如：找出某个特定的蛋白质数据）
+             ============================================================================ -->
+        <div class="filter-card">
+            <h4><i class="bi bi-filter"></i> 条件查询</h4>
+            <!-- 筛选条件容器：会动态添加/移除多行条件 -->
+            <div id="filterContainer">
+                <!-- 第一行筛选条件 -->
+                <div class="row g-3 filter-group" id="filterRow_0">
+                    <!-- 第一列：选择要查询的列（比如：选择"蛋白质名称"） -->
+                    <div class="col-md-3">
+                        <select class="form-select column-select" onchange="updateOperatorOptions(this)">
+                            <option value="">选择列</option>
+                            <!-- 列是从后端动态获取的，每一列显示：名称 (数据类型) -->
+                            {% for column in columns %}
+                            <option value="{{ column[1] }}">{{ column[1] }} ({{ column[2] }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <!-- 第二列：选择比较运算符（等于、包含、大于等） -->
+                    <div class="col-md-2">
+                        <select class="form-select operator-select">
+                            <option value="=">=等于</option>              <!-- 完全匹配 -->
+                            <option value="like">包含</option>           <!-- 模糊搜索 -->
+                            <option value=">">大于</option>              <!-- 数值比较 -->
+                            <option value="<">小于</option>              <!-- 数值比较 -->
+                            <option value=">=">大于等于</option>         <!-- 数值比较 -->
+                            <option value="<=">小于等于</option>         <!-- 数值比较 -->
+                            <option value="!=">不等于</option>           <!-- 反向查询 -->
+                        </select>
+                    </div>
+                    
+                    <!-- 第三列：输入查询值（用户要搜索的具体内容） -->
+                    <div class="col-md-4">
+                        <input type="text" class="form-control filter-value" placeholder="输入筛选值">
+                    </div>
+                    
+                    <!-- 第四列：移除此条件按钮 -->
+                    <div class="col-md-3">
+                        <button class="btn btn-outline-danger" onclick="removeFilter(this)">
+                            <i class="bi bi-trash"></i> 移除条件
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 控制按钮区：添加条件、查询、重置、导出 -->
+            <div class="row mt-3">
+                <div class="col">
+                    <!-- 添加更多筛选条件（可以同时搜索多个条件） -->
+                    <button class="btn btn-primary" onclick="addFilter()">
+                        <i class="bi bi-plus-circle"></i> 添加筛选条件
+                    </button>
+                    
+                    <!-- 执行查询：把条件发送给服务器 -->
+                    <button class="btn btn-success" onclick="queryData()">
+                        <i class="bi bi-search"></i> 查询数据
+                    </button>
+                    
+                    <!-- 清空所有条件，回到初始状态 -->
+                    <button class="btn btn-secondary" onclick="resetFilters()">
+                        <i class="bi bi-arrow-clockwise"></i> 重置条件
+                    </button>
+                    
+                    <!-- 导出当前查询条件为 JSON 文件（方便下次使用相同条件） -->
+                    <button class="btn btn-info" onclick="exportQuery()">
+                        <i class="bi bi-download"></i> 导出查询条件
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- ============================================================================
+             第二部分：增删操作区域
+             功能：上传数据（增）和删除数据（删）
+             ============================================================================ -->
+        <div class="row mb-4">
+            <!-- 左列：增加数据（上传 CSV） -->
+            <div class="col-md-6">
+                <div class="filter-card">
+                    <h4><i class="bi bi-plus-circle"></i> 增加数据</h4>
+                    <div class="mb-3">
+                        <label class="form-label">选择CSV文件上传</label>
+                        <!-- 文件选择框：用户选择 CSV 文件（仅接受 .csv 格式） -->
+                        <input type="file" class="form-control" id="csvFile" accept=".csv" multiple>
+                        <!-- 帮助文本：告诉用户上传后会发生什么 -->
+                        <div class="form-text">CSV文件的列名将被自动识别，新列会被添加到表中</div>
+                    </div>
+                    <!-- 上传按钮：点击会把文件发送给服务器 -->
+                    <button class="btn btn-success" onclick="uploadCSV()">
+                        <i class="bi bi-upload"></i> 插入数据到数据库
+                    </button>
+                    <!-- 上传状态提示（成功或失败消息会显示在这里） -->
+                    <div id="uploadStatus" class="mt-2"></div>
+                </div>
+            </div>
+            
+            <!-- 右列：删除数据 -->
+            <div class="col-md-6">
+                <div class="filter-card">
+                    <h4><i class="bi bi-trash"></i> 删除数据</h4>
+                    <div class="mb-3">
+                        <!-- 安全保护：要求用户输入 "DELETE" 来确认，防止误删 -->
+                        <label class="form-label">确认删除（输入 DELETE 以确认）</label>
+                        <input type="text" class="form-control" id="confirmDelete" placeholder="输入 DELETE">
+                    </div>
+                    <!-- 删除按钮：只有当用户输入了 "DELETE" 才会启用 -->
+                    <button class="btn btn-danger" onclick="deleteSelected()" disabled id="deleteBtn">
+                        <i class="bi bi-trash"></i> 删除选中的数据
+                    </button>
+                    <!-- 选中数量显示：告诉用户当前选了多少行 -->
+                    <div class="mt-2">
+                        <span id="selectedCount">已选择 0 条记录</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- ============================================================================
+             第三部分：结果显示区域
+             功能：显示查询结果、分页、选中、操作等
+             ============================================================================ -->
+        <div class="results-card">
+            <!-- 区域标题+统计信息 -->
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4><i class="bi bi-table"></i> 查询结果</h4>
+                <!-- 统计信息：显示找到多少条记录 -->
+                <div class="stats" id="resultStats"></div>
+            </div>
+            
+            <!-- ============ 分页控制区 ============
+                 左边：每页显示数量选择
+                 中间：分页按钮（1,2,3...）
+                 右边：当前是第几页
+                 ================================================= -->
+            <div class="pagination-controls">
+                <!-- 左边：每页显示数量 -->
+                <div>
+                    <span>每页显示：</span>
+                    <select class="form-select form-select-sm d-inline-block w-auto" onchange="changePerPage(this)">
+                        <option value="10">10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                    <span>条</span>
+                </div>
+                
+                <!-- 中间：分页按钮（上一页、1、2、3...、下一页） -->
+                <div id="pagination" class="d-flex align-items-center">
+                    <!-- 分页按钮将由 JavaScript 动态生成 -->
+                </div>
+                
+                <!-- 右边：当前页码信息 -->
+                <div>
+                    <span id="pageInfo">第 1 页，共 1 页</span>
+                </div>
+            </div>
+            
+            <!-- ============ 数据表格 ============
+                 显示查询结果的数据
+                 ================================================= -->
+            <div class="table-container mt-3">
+                <table class="table table-hover" id="resultsTable">
+                    <!-- 表头：列名 + 操作列 -->
+                    <thead id="tableHeader">
+                        <!-- 表头将由 JavaScript 动态生成 -->
+                    </thead>
+                    <!-- 表体：每一行是一条数据记录 -->
+                    <tbody id="tableBody">
+                        <!-- 数据行将由 JavaScript 动态生成 -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- 没有数据时的提示信息 -->
+            <div class="text-center mt-3" id="noResults">
+                <p class="text-muted">暂无数据，请先查询</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================================
+         详情模态框
+         当用户点击"详情"按钮时，显示单条记录的完整信息
+         ============================================================================ -->
+    <div class="modal fade" id="detailModal" tabindex="-1">
+        <!-- 模态框窗口，modal-lg 表示中等大小 -->
+        <div class="modal-dialog modal-lg">
+            <!-- 模态框内容区 -->
+            <div class="modal-content">
+                <!-- 模态框顶部：标题 + 关闭按钮 -->
+                <div class="modal-header">
+                    <h5 class="modal-title">数据详情</h5>
+                    <!-- 关闭按钮（×）-->
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <!-- 模态框主体：动态填充详情内容 -->
+                <div class="modal-body" id="detailContent">
+                    <!-- 详情内容将由 JavaScript 动态填充 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================================
+         下面开始 JavaScript 代码：实现各种交互功能
+         ============================================================================ -->
+    <!-- 导入 Bootstrap 的 JavaScript 库（用于模态框等交互） -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- 自定义 JavaScript 脚本 -->
+    <script>
+        /* ============================================================================
+           变量声明：保存当前状态
+           ============================================================================ */
+        
+        let currentPage = 1;              /* 当前显示的页码 */
+        let perPage = 10;                 /* 每页显示的记录数 */
+        let totalPages = 1;               /* 总页数 */
+        let currentFilters = {};          /* 当前的查询过滤条件 */
+        let selectedIds = new Set();      /* 用户已选中的记录 ID */
+        
+        // 监听删除确认输入
+        document.getElementById('confirmDelete').addEventListener('input', function(e) {
+            const deleteBtn = document.getElementById('deleteBtn');
+            deleteBtn.disabled = e.target.value !== 'DELETE';
+        });
+        
+        // ============================================================================
+        // 函数：添加新的筛选条件行
+        // 功能：当用户点击"添加筛选条件"按钮时，增加一行新的查询条件
+        // ============================================================================
+        function addFilter() {
+            const container = document.getElementById('filterContainer');
+            const filterCount = container.children.length;
+            const newFilter = container.children[0].cloneNode(true);  /* 复制第一行 */
+            newFilter.id = 'filterRow_' + filterCount;
+            
+            // 清空前一个过滤器的值
+            newFilter.querySelector('.column-select').value = '';
+            newFilter.querySelector('.filter-value').value = '';
+            newFilter.querySelector('.operator-select').value = '=';
+            
+            container.appendChild(newFilter);  /* 添加到容器末尾 */
+        }
+        
+        // ============================================================================
+        // 函数：移除某个筛选条件行
+        // 功能：当用户点击"移除条件"按钮时，删除该行
+        // ============================================================================
+        function removeFilter(button) {
+            const container = document.getElementById('filterContainer');
+            if (container.children.length > 1) {  /* 至少保留一行 */
+                const filterRow = button.closest('.filter-group');
+                filterRow.remove();
+            }
+        }
+        
+        // ============================================================================
+        // 函数：重置所有筛选条件
+        // 功能：清空用户输入的所有条件，使页面回到初始状态
+        // ============================================================================
+        function resetFilters() {
+            const container = document.getElementById('filterContainer');
+            // 保留第一个，重置其值
+            const firstFilter = container.children[0];
+            firstFilter.querySelector('.column-select').value = '';
+            firstFilter.querySelector('.filter-value').value = '';
+            firstFilter.querySelector('.operator-select').value = '=';
+            
+            // 移除其他过滤器
+            while (container.children.length > 1) {
+                container.lastChild.remove();
+            }
+        }
+        
+        // ============================================================================
+        // 函数：更新运算符选项（预留功能，暂未启用）
+        // 功能：根据选中的列类型，提供合适的运算符（如日期列提供日期比较运算符）
+        // ============================================================================
+        function updateOperatorOptions(select) {
+            const columnName = select.value;
+            const operatorSelect = select.closest('.filter-group').querySelector('.operator-select');
+            
+            // 根据列类型调整可用的运算符
+            // 这里可以根据需要添加更多逻辑
+        }
+        
+        // ============================================================================
+        // 函数：收集用户输入的所有过滤条件
+        // 功能：将页面上的条件读出来，返回一个对象给查询函数使用
+        // 返回值：{ 列名: {operator: 运算符, value: 值}, ... }
+        // ============================================================================
+        function collectFilters() {
+            const filters = {};
+            const filterGroups = document.querySelectorAll('.filter-group');
+            
+            filterGroups.forEach((group, index) => {
+                const columnSelect = group.querySelector('.column-select');
+                const operatorSelect = group.querySelector('.operator-select');
+                const valueInput = group.querySelector('.filter-value');
+                
+                const column = columnSelect.value;
+                const operator = operatorSelect.value;
+                const value = valueInput.value.trim();
+                
+                // 只记录用户填写了列名和值的条件
+                if (column && value) {
+                    filters[column] = {
+                        operator: operator,
+                        value: value
+                    };
+                }
+            });
+            
+            return filters;
+        }
+        
+        // ============================================================================
+        // 函数：执行查询，从服务器获取数据
+        // 参数：page - 第几页（默认第 1 页）
+        // 功能：收集条件，发送到后端 /api/query 接口，获取结果
+        // ============================================================================
+        function queryData(page = 1) {
+            const filters = collectFilters();
+            currentFilters = filters;
+            currentPage = page;
+            
+            // 发送 POST 请求到后端
+            fetch('/api/query', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    filters: filters,
+                    page: page,
+                    per_page: perPage
+                })
+            })
+            .then(response => response.json())  /* 解析 JSON 响应 */
+            .then(data => {
+                if (data.success) {
+                    displayResults(data);  /* 显示结果 */
+                } else {
+                    alert('查询失败: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('查询过程中发生错误');
+            });
+        }
+        
+        // ============================================================================
+        // 函数：显示查询结果
+        // 功能：把服务器返回的数据显示在页面的表格中
+        // ============================================================================
+        function displayResults(data) {
+            const tableHeader = document.getElementById('tableHeader');
+            const tableBody = document.getElementById('tableBody');
+            const noResults = document.getElementById('noResults');
+            const resultStats = document.getElementById('resultStats');
+            const pageInfo = document.getElementById('pageInfo');
+            
+            // 更新统计信息（共找到多少条记录）
+            resultStats.textContent = `共找到 ${data.total_count} 条记录`;
+            pageInfo.textContent = `第 ${data.page} 页，共 ${data.total_pages} 页`;
+            totalPages = data.total_pages;
+            
+            // 如果没有结果，显示"暂无数据"
+            if (data.data.length === 0) {
+                tableHeader.innerHTML = '';
+                tableBody.innerHTML = '';
+                noResults.style.display = 'block';
+                updatePagination();
+                return;
+            }
+            
+            noResults.style.display = 'none';
+            
+            // 构建表头：复选框 + 列名 + 操作
+            let headerHtml = '<tr><th><input type="checkbox" onclick="toggleSelectAll(this)"></th>';
+            data.columns.forEach(column => {
+                headerHtml += `<th>${column}</th>`;  /* 添加每一列的列名 */
+            });
+            headerHtml += '<th>操作</th></tr>';
+            tableHeader.innerHTML = headerHtml;
+            
+            // 构建表体：显示每一行数据
+            let bodyHtml = '';
+            data.data.forEach((row, index) => {
+                const isSelected = selectedIds.has(row.id);  /* 检查是否已选 */
+                bodyHtml += `<tr class="${isSelected ? 'selected-row' : ''}" id="row_${row.id}">`;
+                
+                // 第一列：复选框
+                bodyHtml += `<td><input type="checkbox" ${isSelected ? 'checked' : ''} onchange="toggleSelect(${row.id}, this)"></td>`;
+                
+                // 其他列：显示数据，过长的数据会截断
+                data.columns.forEach(column => {
+                    let value = row[column];
+                    if (value === null || value === undefined) value = '';  /* 空值显示为空 */
+                    if (typeof value === 'string' && value.length > 50) {
+                        value = value.substring(0, 50) + '...';  /* 超过 50 字符截断 */
+                    }
+                    bodyHtml += `<td title="${row[column]}">${value}</td>`;  /* title 显示完整内容 */
+                });
+                
+                // 最后一列：操作按钮
+                bodyHtml += `
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick="showDetail(${row.id})">
+                            <i class="bi bi-eye"></i> 详情
+                        </button>
+                    </td>
+                </tr>`;
+            });
+            tableBody.innerHTML = bodyHtml;
+            
+            updateSelectedCount();
+            updatePagination();
+        }
+        
+        // ============================================================================
+        // 函数：更新分页按钮
+        // 功能：根据总页数和当前页码，显示"上一页、1、2、3...、下一页"等按钮
+        // ============================================================================
+        function updatePagination() {
+            const pagination = document.getElementById('pagination');
+            let paginationHtml = '';
+            
+            // 上一页按钮
+            paginationHtml += `
+                <button class="btn btn-sm ${currentPage === 1 ? 'btn-outline-secondary' : 'btn-outline-primary'}" 
+                        ${currentPage === 1 ? 'disabled' : ''}  
+                        onclick="queryData(${currentPage - 1})">
+                    上一页
+                </button>
+            `;
+            
+            // 页码按钮（智能显示：第 1、最后 1、当前前后各 2 页）
+            for (let i = 1; i <= totalPages; i++) {
+                if (i === 1 || i === totalPages || (i >= currentPage - 2 && i <= currentPage + 2)) {
+                    paginationHtml += `
+                        <button class="btn btn-sm ${currentPage === i ? 'btn-primary' : 'btn-outline-primary'} mx-1" 
+                                onclick="queryData(${i})">
+                            ${i}
+                        </button>
+                    `;
+                } else if (i === currentPage - 3 || i === currentPage + 3) {
+                    paginationHtml += '<span class="mx-1">...</span>';  /* 省略号 */
+                }
+            }
+            
+            // 下一页按钮
+            paginationHtml += `
+                <button class="btn btn-sm ${currentPage === totalPages ? 'btn-outline-secondary' : 'btn-outline-primary'}" 
+                        ${currentPage === totalPages ? 'disabled' : ''} 
+                        onclick="queryData(${currentPage + 1})">
+                    下一页
+                </button>
+            `;
+            
+            pagination.innerHTML = paginationHtml;
+        }
+        
+        // ============================================================================
+        // 函数：改变每页显示的记录数
+        // 功能：用户选择"每页 10 条" / "25 条" 等，重新查询并显示
+        // ============================================================================
+        function changePerPage(select) {
+            perPage = parseInt(select.value);
+            queryData(1);  /* 重新从第 1 页查询 */
+        }
+        
+        // ============================================================================
+        // 函数：上传 CSV 文件并添加数据
+        // 功能：用户选择文件 -> 上传 -> 服务器处理 -> 刷新页面
+        // ============================================================================
+        function uploadCSV() {
+            const fileInput = document.getElementById('csvFile');
+            const uploadStatus = document.getElementById('uploadStatus');
+            const fileList = document.getElementById('fileList');
+            
+            // 校验：用户是否选择了文件
+            if (!fileInput.files || fileInput.files.length === 0) {
+                alert('请先选择CSV文件');
+                return;
+            }
+            
+            // 创建表单数据对象（用于上传文件）
+            const formData = new FormData();
+            for (let i = 0; i < fileInput.files.length; i++) {
+                formData.append(`file_${i}`, fileInput.files[i]);
+            }
+            
+            // 显示上传中的提示信息
+            uploadStatus.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div> 正在上传...';
+            
+            // 发送文件到后端
+            fetch('/api/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())  /* 获取后端响应 */
+            .then(data => {
+                    if (data.success) {
+                        uploadStatus.innerHTML = '<div class="alert alert-success">上传成功</div>';
+                        uploadStatus.innerHTML += `<div class="alert alert-info">文件总数${fileInput.files.length}，成功${data.success_count}个，新增${data.total_rows_inserted}条记录</div>`;
+                        setTimeout(() => {
+                            fileInput.value = ''; // 这行清空文件路径
+                            location.reload();
+                        }, 2000);
+                    } else {
+                        uploadStatus.innerHTML = `<div class="alert alert-danger">上传失败: ${data.error || '未知错误'}</div>`;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    uploadStatus.innerHTML = '<div class="alert alert-danger">上传失败</div>';
+                });
+            }
+        
+        // ============================================================================
+        // 函数：切换某一行的选择状态
+        // 参数：id - 这一行的记录 ID；checkbox - 复选框对象
+        // 功能：用户点击行前面的复选框，该行会被标记为选中（蓝色背景）
+        // ============================================================================
+        function toggleSelect(id, checkbox) {
+            const row = document.getElementById('row_' + id);
+            if (checkbox.checked) {
+                selectedIds.add(id);              /* 添加到选中集合 */
+                row.classList.add('selected-row');  /* 添加蓝色背景样式 */
+            } else {
+                selectedIds.delete(id);           /* 从选中集合移除 */
+                row.classList.remove('selected-row');  /* 移除蓝色背景样式 */
+            }
+            updateSelectedCount();  /* 更新"已选择多少条"的显示 */
+        }
+        
+        // ============================================================================
+        // 函数：全选/全不选
+        // 参数：checkbox - 表头的"全选"复选框
+        // 功能：点击表头的复选框，可以一次性选中或取消选中所有行
+        // ============================================================================
+        function toggleSelectAll(checkbox) {
+            // 查找当前页所有的行复选框
+            const checkboxes = document.querySelectorAll('#tableBody input[type="checkbox"]');
+            checkboxes.forEach(cb => {
+                cb.checked = checkbox.checked;  /* 设置勾选状态 */
+                
+                // 提取这一行的 ID，更新 selectedIds
+                const rowId = parseInt(cb.getAttribute('onchange').match(/\d+/)[0]);
+                if (checkbox.checked) {
+                    selectedIds.add(rowId);
+                    document.getElementById('row_' + rowId).classList.add('selected-row');
+                } else {
+                    selectedIds.delete(rowId);
+                    document.getElementById('row_' + rowId).classList.remove('selected-row');
+                }
+            });
+            updateSelectedCount();  /* 更新"已选择多少条"的显示 */
+        }
+        
+        // ============================================================================
+        // 函数：更新已选择记录数的显示
+        // 功能：在页面上显示用户当前选了多少条记录
+        // ============================================================================
+        function updateSelectedCount() {
+            document.getElementById('selectedCount').textContent = `已选择 ${selectedIds.size} 条记录`;
+        }
+        
+        // ============================================================================
+        // 函数：删除选中的记录
+        // 功能：用户输入"DELETE"确认 -> 点击删除按钮 -> 删除选中的所有记录
+        // ============================================================================
+        function deleteSelected() {
+            // 检查是否有选中的记录
+            if (selectedIds.size === 0) {
+                alert('请先选择要删除的记录');
+                return;
+            }
+            
+            // 检查是否输入了 "DELETE" 确认
+            const confirmText = document.getElementById('confirmDelete').value;
+            if (confirmText !== 'DELETE') {
+                alert('请正确输入 DELETE 以确认删除');
+                return;
+            }
+            
+            // 最后弹出一个确认对话框
+            if (!confirm(`确定要删除选中的 ${selectedIds.size} 条记录吗？此操作不可撤销！`)) {
+                return;  /* 用户点击取消 */
+            }
+            
+            // 发送删除请求到后端
+            fetch('/api/delete', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    ids: Array.from(selectedIds)  /* 把 Set 转换为数组 */
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // 删除成功
+                    alert(`成功删除 ${data.deleted_count} 条记录`);
+                    selectedIds.clear();  /* 清空选中集合 */
+                    document.getElementById('confirmDelete').value = '';  /* 清空输入框 */
+                    document.getElementById('deleteBtn').disabled = true;  /* 禁用删除按钮 */
+                    queryData(currentPage);  /* 刷新数据显示 */
+                } else {
+                    alert('删除失败: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('删除过程中发生错误');
+            });
+        }
+        
+        // ============================================================================
+        // 函数：显示单条记录的详情
+        // 参数：id - 记录 ID
+        // 功能：点击"详情"按钮,显示该条记录的完整信息（暂时只弹出 alert）
+        // ============================================================================
+        function showDetail(id) {
+            // 这里可以显示详细信息的模态框
+            alert(`显示ID为 ${id} 的详细信息`);
+            // 实际实现中，这里可以发送请求获取详细数据并显示在模态框中
+        }
+        
+        // ============================================================================
+        // 函数：导出当前查询条件为 JSON 文件
+        // 功能：将用户输入的所有条件保存为 JSON 文件，方便下次导入使用
+        // ============================================================================
+        function exportQuery() {
+            const filters = collectFilters();  /* 收集当前的查询条件 */
+            
+            // 发送请求到后端，导出条件
+            fetch('/api/export_query', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    filters: filters
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // 构建 JSON 字符串
+                    const dataStr = JSON.stringify(data.query_conditions, null, 2);
+                    
+                    // 创建 Blob（二进制数据对象）
+                    const dataBlob = new Blob([dataStr], {type: 'application/json'});
+                    
+                    // 创建下载链接
+                    const url = URL.createObjectURL(dataBlob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `query_conditions_${new Date().toISOString().slice(0,10)}.json`;  /* 文件名含日期 */
+                    
+                    // 模拟点击链接，触发浏览器下载
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);  /* 释放资源 */
+                } else {
+                    alert('导出失败: ' + data.error);
+                }
+            });
+        }
+        
+        // ============================================================================
+        // 页面初始化：当 DOM 加载完成时执行
+        // 功能：查询并显示初始数据
+        // ============================================================================
+        document.addEventListener('DOMContentLoaded', function() {
+            // 注释掉这行，让页面不自动查询数据
+            // queryData(1);
+            
+            // 可以显示一个提示信息
+            const noResults = document.getElementById('noResults');
+            const resultStats = document.getElementById('resultStats');
+            const pageInfo = document.getElementById('pageInfo');
+            
+            // 设置初始状态提示
+            resultStats.textContent = '请先设置查询条件并点击"查询数据"按钮';
+            pageInfo.textContent = '第 0 页，共 0 页';
+            noResults.style.display = 'block';
+            noResults.innerHTML = '<p class="text-muted">请先设置查询条件，然后点击"查询数据"按钮</p>';
+        });
+    </script>
+</body>
+</html>

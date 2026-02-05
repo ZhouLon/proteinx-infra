@@ -7,3 +7,5 @@ aa_map = {
     'U': 20, 'V': 21, 'W': 22, 'X': 23, 'Y': 24,
     'Z': 25, '-': 26
 }
+
+database_header=['mutant','mutated_sequence','DMS_score','DMS_score_bin']
