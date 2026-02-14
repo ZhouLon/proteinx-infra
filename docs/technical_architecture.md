@@ -11,7 +11,7 @@ graph TD
     subgraph "管理机 (Master Node)"
         API[FastAPI Server]
         Web[React 前端资源]
-        DB[(SQLite/PostgreSQL)]
+        DB[(SQLite)]
         Queue[Redis 任务队列]
         FileSys[分布式文件服务 / MinIO]
     end
