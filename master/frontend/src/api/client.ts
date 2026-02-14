@@ -2,7 +2,7 @@ import axios from 'axios';
 
 const client = axios.create({
   baseURL: '/api',
-  timeout: 10000,
+  timeout: 60000,
 });
 
 client.interceptors.response.use(

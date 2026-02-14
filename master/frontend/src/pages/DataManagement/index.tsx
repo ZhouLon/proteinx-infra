@@ -1,131 +1,174 @@
-import React, { useEffect, useState } from 'react';
-import { Upload, Table, message, Button, Popconfirm } from 'antd';
-import { InboxOutlined, DeleteOutlined, FileOutlined, FolderOutlined } from '@ant-design/icons';
-import { listFiles, deleteFile, FileInfo } from '../../api/file';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Table, message, Button, Select, Input, Space, Typography } from 'antd';
+import { PlusOutlined, SearchOutlined } from '@ant-design/icons';
+import { listColumns, queryRecords, ColumnInfo, FilterItem } from '../../api/metadata';
 
-const { Dragger } = Upload;
+const { Title, Text } = Typography;
+
+const textOperators = [
+  { label: '= 等于', value: '=' },
+  { label: '包含', value: 'like' },
+  { label: '!= 不等于', value: '!=' },
+];
+const numericOperators = [
+  { label: '= 等于', value: '=' },
+  { label: '> 大于', value: '>' },
+  { label: '< 小于', value: '<' },
+  { label: '>= 大于等于', value: '>=' },
+  { label: '<= 小于等于', value: '<=' },
+  { label: '!= 不等于', value: '!=' },
+];
 
 const DataManagement: React.FC = () => {
-  const [files, setFiles] = useState<FileInfo[]>([]);
+  const [columnsMeta, setColumnsMeta] = useState<ColumnInfo[]>([]);
+  const [filters, setFilters] = useState<FilterItem[]>([{ column: '', operator: '=', value: '' }]);
+  const [rows, setRows] = useState<Record<string, any>[]>([]);
   const [loading, setLoading] = useState(false);
-  const [currentPath, setCurrentPath] = useState('/');
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(25);
+  const [total, setTotal] = useState(0);
 
-  const fetchFiles = async (path: string) => {
-    setLoading(true);
-    try {
-      const data = await listFiles(path);
-      setFiles(data);
-    } catch (error) {
-      message.error('加载文件列表失败');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const isFetchingRef = useRef<boolean>(false);
 
   useEffect(() => {
-    fetchFiles(currentPath);
-  }, [currentPath]);
+    (async () => {
+      try {
+        const cols = await listColumns();
+        setColumnsMeta(cols);
+      } catch (e) {
+        const err: any = e;
+        message.error(err?.response?.data?.detail || '加载列信息失败');
+      }
+    })();
+  }, []);
 
-  const handleDelete = async (path: string) => {
+  const fetchData = async (overridePage?: number, overridePerPage?: number) => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+    setLoading(true);
     try {
-      await deleteFile(path);
-      message.success('文件删除成功');
-      fetchFiles(currentPath);
-    } catch (error) {
-      message.error('文件删除失败');
+      const cleanFilters = filters.filter(f => f.column && (f.value !== '' && f.value !== undefined));
+      const currentPage = overridePage ?? page;
+      const currentPerPage = overridePerPage ?? perPage;
+      const res = await queryRecords(undefined, currentPage, currentPerPage, cleanFilters);
+      setRows(res.rows);
+      setTotal(res.total);
+      if (overridePage) setPage(overridePage);
+      if (overridePerPage) setPerPage(overridePerPage);
+    } catch (e) {
+      const err: any = e;
+      message.error(err?.response?.data?.detail || '查询数据失败');
+    } finally {
+      setLoading(false);
+      isFetchingRef.current = false;
     }
   };
 
-  const uploadProps = {
-    name: 'file',
-    multiple: true,
-    action: '/api/files/upload',
-    data: { path: currentPath },
-    onChange(info: any) {
-      const { status } = info.file;
-      if (status === 'done') {
-        message.success(`${info.file.name} 上传成功`);
-        fetchFiles(currentPath);
-      } else if (status === 'error') {
-        message.error(`${info.file.name} 上传失败`);
-      }
-    },
-    showUploadList: false, // 不显示默认的上传列表，因为我们有自己的文件表格
+  // 不自动查询；仅在点击按钮或分页交互时触发
+  useEffect(() => {
+    // 初始化不查询，避免按钮在刷新后灰色
+    return;
+  }, []);
+
+  const tableColumns = useMemo(() => {
+    const cols = columnsMeta.map(c => ({
+      title: c.name,
+      dataIndex: c.name,
+      key: c.name,
+      ellipsis: true,
+    }));
+    return cols;
+  }, [columnsMeta]);
+
+  const rowKeySelector = (record: any) => record.id ?? record.__rowid__ ?? JSON.stringify(record).length;
+
+  const onAddFilter = () => {
+    setFilters(prev => [...prev, { column: '', operator: '=', value: '' }]);
   };
 
-  const formatSize = (size: number) => {
-    if (size < 1024) return `${size} B`;
-    if (size < 1024 * 1024) return `${(size / 1024).toFixed(2)} KB`;
-    if (size < 1024 * 1024 * 1024) return `${(size / 1024 / 1024).toFixed(2)} MB`;
-    return `${(size / 1024 / 1024 / 1024).toFixed(2)} GB`;
+  const onChangeFilter = (idx: number, patch: Partial<FilterItem>) => {
+    setFilters(prev => {
+      const next = [...prev];
+      next[idx] = { ...next[idx], ...patch };
+      return next;
+    });
   };
 
-  const columns = [
-    {
-      title: '类型',
-      dataIndex: 'type',
-      key: 'type',
-      width: 60,
-      render: (type: string) => type === 'directory' ? <FolderOutlined /> : <FileOutlined />,
-    },
-    { 
-      title: '文件名', 
-      dataIndex: 'name', 
-      key: 'name',
-      render: (text: string, record: FileInfo) => (
-        record.type === 'directory' ? (
-          <a onClick={() => setCurrentPath(`${currentPath}${text}/`)}>{text}</a>
-        ) : text
-      )
-    },
-    { 
-      title: '大小', 
-      dataIndex: 'size', 
-      key: 'size', 
-      render: (size: number, record: FileInfo) => record.type === 'directory' ? '-' : formatSize(size) 
-    },
-    { title: '更新时间', dataIndex: 'updated_at', key: 'updated_at' },
-    { 
-      title: '操作', 
-      key: 'action', 
-      render: (_: any, record: FileInfo) => (
-        <Popconfirm title="确定删除吗？" onConfirm={() => handleDelete(record.path)}>
-          <Button type="link" danger icon={<DeleteOutlined />} />
-        </Popconfirm>
-      ) 
-    },
-  ];
+  const onRemoveFilter = (idx: number) => {
+    setFilters(prev => (prev.length > 1 ? prev.filter((_, i) => i !== idx) : prev));
+  };
 
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <h2>数据管理</h2>
-        {currentPath !== '/' && (
-           <Button onClick={() => {
-             const parent = currentPath.split('/').slice(0, -2).join('/') + '/';
-             setCurrentPath(parent || '/');
-           }}>返回上级目录</Button>
-        )}
-      </div>
-      
-      <div style={{ marginBottom: 24 }}>
-        <Dragger {...uploadProps}>
-          <p className="ant-upload-drag-icon">
-            <InboxOutlined />
-          </p>
-          <p className="ant-upload-text">点击或拖拽文件到此区域上传</p>
-          <p className="ant-upload-hint">
-            当前路径: {currentPath} (支持批量上传)
-          </p>
-        </Dragger>
+        <Title level={3}>数据管理</Title>
       </div>
 
-      <Table 
-        dataSource={files} 
-        columns={columns} 
-        rowKey="path"
+      <div style={{ padding: 16, background: '#fff', borderRadius: 8, marginBottom: 16 }}>
+        <Space direction="vertical" style={{ width: '100%' }}>
+          <Space align="center">
+            <Text strong>条件查询</Text>
+            <Button type="dashed" icon={<PlusOutlined />} onClick={onAddFilter}>添加条件</Button>
+            <Button
+              type="primary"
+              icon={<SearchOutlined />}
+              onClick={() => fetchData(1)}
+              disabled={loading || isFetchingRef.current}
+            >
+              查询
+            </Button>
+          </Space>
+          {filters.map((f, idx) => (
+            <Space key={idx} style={{ width: '100%' }}>
+              <Select
+                placeholder="选择列"
+                value={f.column || undefined}
+                onChange={(v) => onChangeFilter(idx, { column: v })}
+                style={{ minWidth: 200 }}
+                options={columnsMeta.map(c => ({ label: `${c.name} (${c.type})`, value: c.name }))}
+              />
+              <Select
+                placeholder="运算符"
+                value={f.operator}
+                onChange={(v) => onChangeFilter(idx, { operator: v })}
+                style={{ minWidth: 140 }}
+                options={
+                  (columnsMeta.find(c => c.name === f.column)?.type || '').toUpperCase().match(/INT|REAL|NUM/)
+                    ? numericOperators
+                    : textOperators
+                }
+              />
+              <Input
+                placeholder="输入筛选值"
+                value={String(f.value ?? '')}
+                onChange={(e) => onChangeFilter(idx, { value: e.target.value })}
+                style={{ minWidth: 240 }}
+              />
+              <Button danger onClick={() => onRemoveFilter(idx)}>移除</Button>
+            </Space>
+          ))}
+        </Space>
+      </div>
+
+      <div style={{ marginBottom: 12 }}>
+        <Text>找到 {total} 条记录</Text>
+      </div>
+
+      <Table
+        dataSource={rows}
+        columns={tableColumns}
+        rowKey={rowKeySelector}
         loading={loading}
-        pagination={{ pageSize: 10 }}
+        pagination={{
+          current: page,
+          pageSize: perPage,
+          total,
+          showSizeChanger: true,
+          pageSizeOptions: ['10', '25', '50', '100'],
+          onChange: (p, ps) => {
+            fetchData(p, ps);
+          },
+        }}
       />
     </div>
   );

@@ -1,5 +1,6 @@
 /data/
 /tmp/
+/workdir_master/
 /others/
 /*.egg-info/
 __pycache__/

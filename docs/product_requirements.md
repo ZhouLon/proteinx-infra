@@ -155,22 +155,45 @@ graph TD
 
 ```
 ProteinX-Infra/
-├─ master/                      # 管理端（Web/UI + API）
-│  ├─ src/                      # 管理端前端源码与页面
-│  ├─ Dockerfile                # 管理端前端镜像构建文件（从 master 目录构建）
-│  └─ README.md                 # 管理端说明与使用指南
+├─ master/                      # 管理端（前端 + 后端）
+│  ├─ frontend/                 # React + Vite 前端
+│  │  ├─ src/                   # 页面、API 封装、布局
+│  │  ├─ package.json
+│  │  ├─ tsconfig*.json
+│  │  ├─ vite.config.ts
+│  │  ├─ Dockerfile             # 前端镜像（Nginx 提供静态资源、反代 /api）
+│  │  └─ index.html
+│  ├─ backend/                  # FastAPI 后端
+│  │  ├─ app/                   # main.py、路由与模型
+│  │  ├─ requirements.txt
+│  │  └─ Dockerfile
+│  ├─ ARCHITECTURE.md           # 管理端架构说明
+│  ├─ docker-compose.yml        # 部署编排（前后端、网络、卷）
+│  └─ .env                      # 环境变量示例（不提交仓库）
 ├─ compute/                     # 计算端（Worker/Agent）
 │  ├─ src/                      # 计算节点/训练代理源码
-│  ├─ setup.py / requirements   # 依赖清单（Conda/venv）
-│  └─ scripts/                  # 计算端启动与运维脚本
+│  │  ├─ data/                  # embedding、dataset、division、load_data
+│  │  ├─ model/                 # 模型定义（simple_model 等）
+│  │  ├─ train/                 # 训练相关
+│  │  ├─ eval/                  # 评估相关
+│  │  ├─ recoder/               # 结果记录/归档
+│  │  ├─ frontend/              # 演示页面（templates/index.html）
+│  │  └─ const.py               # 常量与配置
+│  ├─ scripts/                  # 启动与可视化脚本
+│  ├─ requirements.txt
+│  └─ setup.py
 ├─ docs/                        # 文档
 │  ├─ product_requirements.md
 │  └─ technical_architecture.md
-├─ plan/                        # 版本计划与操作指南
-│  └─ v1_0.md
-├─ tmp/                         # 开发机临时工作目录（开发阶段作工作目录）
+├─ plan/                        # 版本规划
+│  ├─ v1_0.md
+│  ├─ v1_1.md
+│  └─ v1_2.md
 ├─ test/                        # 教学/示例项目与测试资源
-└─ .dockerignore                # 构建上下文忽略规则（排除 tmp/、test/ 等）
+│  └─ data/
+├─ workdir_master/              # 示例工作目录（开发调试用）
+├─ README.md
+└─ LICENSE
 ```
 
 ### 目录设计要点

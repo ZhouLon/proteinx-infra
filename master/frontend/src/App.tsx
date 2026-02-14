@@ -3,13 +3,11 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login/Login';
 import Register from './pages/Register/Register';
 import MainLayout from './layouts/MainLayout';
+import DashboardHome from './pages/DashboardHome';
 import ProjectList from './pages/ProjectList';
+import ProjectDetail from './pages/ProjectDetail';
 import DataManagement from './pages/DataManagement';
-import TrainingConfig from './pages/TrainingConfig';
 import TrainingMonitor from './pages/TrainingMonitor';
-import ModelEvaluation from './pages/ModelEvaluation';
-import Visualization from './pages/Visualization';
-import SystemManagement from './pages/SystemManagement';
 import { existsUser } from './api/auth';
 import { Spin } from 'antd';
 
@@ -46,14 +44,11 @@ const App: React.FC = () => {
         <Route path="/register" element={<Register />} />
         <Route path="/login" element={<Login />} />
         <Route path="/dashboard" element={<MainLayout />}>
-          <Route index element={<Navigate to="projects" replace />} />
+          <Route index element={<DashboardHome />} />
           <Route path="projects" element={<ProjectList />} />
+          <Route path="projects/:pid" element={<ProjectDetail />} />
           <Route path="data" element={<DataManagement />} />
-          <Route path="training" element={<TrainingConfig />} />
           <Route path="monitor" element={<TrainingMonitor />} />
-          <Route path="evaluation" element={<ModelEvaluation />} />
-          <Route path="visualization" element={<Visualization />} />
-          <Route path="system" element={<SystemManagement />} />
         </Route>
       </Routes>
     </BrowserRouter>
