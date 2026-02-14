@@ -119,18 +119,12 @@ master/
 ## 8. 部署
 **前后端拆分（推荐）**
 ```
-# 1) 先在 .env 设置宿主机与容器内工作目录
+# 1) 先在 .env 设置宿主机与容器内工作目录,端口
 # WORKDIR_HOST=C:/ProteinXWorkdir
 # WORKDIR_CONTAINER=/data
+# BACKEND_PORT=8000
+# FRONTEND_PORT=80
 
 # 2) 使用 Compose 启动（本地已构建镜像或拉取镜像）
 docker compose up -d
-```
-
-**Nginx 反代说明**
-```
-# 见 master/nginx.conf：
-# location /api/ {
-#   proxy_pass http://backend:8000/;
-# }
 ```

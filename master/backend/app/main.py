@@ -5,6 +5,7 @@ from typing import List, Optional
 import datetime
 import os
 import json
+import shutil
 from fastapi import HTTPException, status
 import hashlib
 import binascii
@@ -19,16 +20,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Configuration
+WORKDIR = os.environ.get("WORKDIR_CONTAINER", "/data")
+USER_FILE = os.path.join(WORKDIR, ".user")
+
 class LoginParams(BaseModel):
     username: str
     password: Optional[str] = None
     token: Optional[str] = None
-
- 
-
- 
-
-USER_FILE = "/data/.user"
 
 class RegisterParams(BaseModel):
     username: str
@@ -51,7 +50,7 @@ def auth_exists():
 def auth_register(params: RegisterParams):
     if os.path.exists(USER_FILE):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="User already registered")
-    os.makedirs("/data", exist_ok=True)
+    os.makedirs(WORKDIR, exist_ok=True)
     pwd_hash, salt_hex = hash_password(params.password)
     payload = {
         "username": params.username,
@@ -225,50 +224,129 @@ def job_logs(job_id: str):
 def job_cancel(job_id: str):
     return {"ok": True, "job_id": job_id, "status": "cancelled"}
 
+def get_real_path(path: str) -> str:
+    # Ensure path starts with / and remove it to join correctly
+    clean_path = path.strip().lstrip("/")
+    real_path = os.path.join(WORKDIR, clean_path)
+    # Security check to prevent path traversal
+    if not os.path.abspath(real_path).startswith(os.path.abspath(WORKDIR)):
+        raise HTTPException(status_code=400, detail="Invalid path")
+    return real_path
+
 @app.get("/api/files/list", response_model=List[FileInfo])
 def files_list(path: str = "/"):
-    return [
-        FileInfo(
-            name="demo.fasta",
-            path=f"{path}/demo.fasta",
-            size=1234,
-            updated_at=datetime.datetime.utcnow().isoformat(),
-            type="file",
-        )
-    ]
+    real_path = get_real_path(path)
+    if not os.path.exists(real_path):
+         # If root, create it
+        if path == "/" or path == "":
+            os.makedirs(real_path, exist_ok=True)
+        else:
+            raise HTTPException(status_code=404, detail="Path not found")
+            
+    files = []
+    try:
+        with os.scandir(real_path) as it:
+            for entry in it:
+                if entry.name.startswith("."): # Skip hidden files
+                    continue
+                stats = entry.stat()
+                files.append(FileInfo(
+                    name=entry.name,
+                    path=os.path.join(path, entry.name).replace("\\", "/"),
+                    size=stats.st_size,
+                    updated_at=datetime.datetime.fromtimestamp(stats.st_mtime).isoformat(),
+                    type="directory" if entry.is_dir() else "file"
+                ))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+        
+    return files
 
 @app.post("/api/files/upload")
 def files_upload(file: UploadFile = File(...), path: str = Form("/")):
+    real_dir = get_real_path(path)
+    if not os.path.exists(real_dir):
+        os.makedirs(real_dir, exist_ok=True)
+        
+    file_path = os.path.join(real_dir, file.filename)
+    try:
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+    except Exception as e:
+         raise HTTPException(status_code=500, detail=str(e))
+         
     return {"ok": True, "filename": file.filename, "path": path}
 
 @app.delete("/api/files")
 def files_delete(path: str):
+    real_path = get_real_path(path)
+    if not os.path.exists(real_path):
+        raise HTTPException(status_code=404, detail="Path not found")
+    
+    try:
+        if os.path.isdir(real_path):
+            shutil.rmtree(real_path)
+        else:
+            os.remove(real_path)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+        
     return {"ok": True, "path": path}
 
 @app.get("/api/files/preview")
 def files_preview(path: str):
-    return "Mock file preview: header and first lines"
+    real_path = get_real_path(path)
+    if not os.path.exists(real_path) or not os.path.isfile(real_path):
+        raise HTTPException(status_code=404, detail="File not found")
+    
+    try:
+        with open(real_path, "r", encoding="utf-8") as f:
+            content = f.read(4096) # Read first 4KB
+        return content
+    except Exception as e:
+        return f"Cannot preview file: {str(e)}"
 
 @app.get("/api/overview", response_model=Overview)
 def overview():
     nodes = list_nodes()
     jobs = list_jobs()
-    files = files_list("/")
+    
+    # Calculate total file size recursively
+    files_size_total = 0
+    files_count = 0
+    for root, dirs, files in os.walk(WORKDIR):
+        for f in files:
+            if f.startswith("."): continue
+            fp = os.path.join(root, f)
+            try:
+                files_size_total += os.path.getsize(fp)
+                files_count += 1
+            except:
+                pass
+                
     nodes_by_status = {}
     for node in nodes:
         nodes_by_status[node.status] = nodes_by_status.get(node.status, 0) + 1
     jobs_by_status = {}
     for job in jobs:
         jobs_by_status[job.status] = jobs_by_status.get(job.status, 0) + 1
-    files_size_total = sum(file.size for file in files if file.type == "file")
+        
+    # Get top level files for display list (mock for now in overview, or could call list)
+    top_files = []
+    try:
+        # Re-use files_list logic for root
+        top_files = files_list("/")
+    except:
+        pass
+
     return Overview(
         nodes_total=len(nodes),
         nodes_by_status=nodes_by_status,
         jobs_total=len(jobs),
         jobs_by_status=jobs_by_status,
-        files_total=len(files),
+        files_total=files_count,
         files_size_total=files_size_total,
         nodes=nodes,
         jobs=jobs,
-        files=files,
+        files=top_files,
     )
