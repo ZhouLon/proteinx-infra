@@ -85,18 +85,18 @@ graph TD
 
 ## 4. 部署方案
 
-### 方案 A: Master 部署（前端 Docker + 后端原生）
+### 方案 A: 管理端 Master 部署（Web/UI Docker + API 原生/容器化）
 
-**前端 (Docker)**
+**Master Web/UI (Docker)**
 ```
-cd frontend
-docker build -t proteinx/web:v1.0 .
-docker run -d -p 80:3000 --name proteinx-web proteinx/web:v1.0
+cd master
+docker build -t proteinx/master-web:v1.0 .
+docker run -d -p 3000:80 --name px-master-web proteinx/master-web:v1.0
 ```
 
-**后端 (原生)**
+**Master API (原生)**
 ```
-cd backend
+cd master
 python -m venv .venv
 . .venv/bin/activate  # Windows 使用 .venv\Scripts\activate
 pip install -r requirements.txt
@@ -109,7 +109,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 # 后端将把所有持久化数据写入该目录：<workdir>/raw, <workdir>/processed, <workdir>/artifacts, <workdir>/logs
 ```
 
-### 方案 B: Worker 部署（源码 + Conda）
+### 方案 B: 计算端 Compute 部署（源码 + Conda）
 
 **方式 1：Conda 环境文件**
 

@@ -104,7 +104,7 @@ function App() {
 
 ## 4. 实战演练：在本项目中怎么写？
 
-在 `proteinx_infra` 的前端 (`frontend` 目录) 中，我们已经搭好了架子。
+在 `infra` 的管理端 (`master` 目录) 中，我们已经搭好了架子。
 
 1.  **新建组件**：
     在 `src/components` 下新建 `MyCard.tsx`。

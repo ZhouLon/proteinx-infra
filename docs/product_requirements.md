@@ -155,15 +155,14 @@ graph TD
 
 ```
 ProteinX-Infra/
-├─ frontend/                    # 管理机前端（React），仅前端用 Docker 打包
-│  ├─ src/                      # 前端源码
-│  ├─ public/                   # 静态资源
-│  ├─ scripts/                  # 前端构建/发布脚本
-│  └─ Dockerfile                # 前端镜像构建文件（从 frontend 目录构建）
-├─ backend/                     # 管理机后端（API/调度/存储接口），原生运行（venv/Conda）
-│  ├─ src/                      # 后端源码（FastAPI 等）
-│  ├─ scripts/                  # 后端启动/运维脚本
-│  └─ requirements.txt          # 依赖清单（或 pyproject.toml）
+├─ master/                      # 管理端（Web/UI + API）
+│  ├─ src/                      # 管理端前端源码与页面
+│  ├─ Dockerfile                # 管理端前端镜像构建文件（从 master 目录构建）
+│  └─ README.md                 # 管理端说明与使用指南
+├─ compute/                     # 计算端（Worker/Agent）
+│  ├─ src/                      # 计算节点/训练代理源码
+│  ├─ setup.py / requirements   # 依赖清单（Conda/venv）
+│  └─ scripts/                  # 计算端启动与运维脚本
 ├─ docs/                        # 文档
 │  ├─ product_requirements.md
 │  └─ technical_architecture.md
@@ -175,7 +174,7 @@ ProteinX-Infra/
 ```
 
 ### 目录设计要点
-- 管理机 Docker 仅用于前端打包与发布；后端原生运行（建议 venv/Conda），便于与主机 DB/Redis 的强口令配置集成。
+- 管理端（master）以 Docker 发布 Web/UI；API 可按需容器化或原生运行以便与主机 DB/Redis 强口令集成。
 - 持久化数据不纳入仓库与镜像，由管理机登录后在系统中输入一个工作目录（workdir），后续所有数据与产物均写入该目录。
 - 开发阶段在本机使用 tmp 作为工作目录，部署阶段在管理机输入实际路径（如 /data/proteinx 或 D:\ProteinXWorkdir）。
-- .dockerignore 排除 tmp/ 与 test/ 等非必要内容，保证前端镜像构建上下文最小化。
+- .dockerignore 排除 tmp/ 与 test/ 等非必要内容，保证镜像构建上下文最小化。
