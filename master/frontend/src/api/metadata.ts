@@ -13,6 +13,7 @@ export interface QueryResponse {
   per_page: number;
   total: number;
   rows: Record<string, any>[];
+  duration_ms?: number;
 }
 
 export interface FilterItem {
@@ -37,6 +38,7 @@ export const queryRecords = async (table: string | undefined, page: number, perP
   const params: Record<string, any> = {
     page,
     per_page: perPage,
+    pageSize: perPage,
     filters: JSON.stringify(filters || []),
   };
   if (table) params.table = table;

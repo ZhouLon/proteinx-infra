@@ -1,12 +1,12 @@
 import React from 'react';
-import { Card, Row, Col, Progress, Statistic } from 'antd';
+import { Card, Row, Col, Progress, Statistic, Typography } from 'antd';
 // Note: In a real app, use a charting library like @ant-design/plots or recharts
 // For now, using placeholders
 
 const TrainingMonitor: React.FC = () => {
   return (
     <div>
-      <h2>训练监控</h2>
+      <Typography.Title level={3} style={{ margin: 0, color: '#1890ff' }}>训练监控</Typography.Title>
       <Row gutter={16}>
         <Col span={12}>
           <Card title="实时 Loss">

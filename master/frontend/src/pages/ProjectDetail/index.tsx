@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Button, Space, Typography, Input, Form, message, List, Modal, Select } from 'antd';
+import { Card, Button, Space, Typography, Input, Form, message, Modal, Select, Row, Col, Statistic, Table } from 'antd';
 import { useParams, useNavigate } from 'react-router-dom';
 import client from '../../api/client';
 import { listColumns, ColumnInfo, FilterItem } from '../../api/metadata';
@@ -38,17 +38,16 @@ const numericOperators = [
   { label: '!= 不等于', value: '!=' },
 ];
 
-const ProjectDetail: React.FC = () => {
+export const ProjectOverview: React.FC = () => {
   const { pid } = useParams<{ pid: string }>();
   const navigate = useNavigate();
   const [project, setProject] = useState<ProjectInfo | null>(null);
   const [loading, setLoading] = useState(false);
   const [password, setPassword] = useState('');
-
-  const [columnsMeta, setColumnsMeta] = useState<ColumnInfo[]>([]);
-  const [filters, setFilters] = useState<FilterItem[]>([{ column: '', operator: '=', value: '' }]);
-  const [datasets, setDatasets] = useState<DatasetInfo[]>([]);
-  const [datasetName, setDatasetName] = useState('');
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [experimentsTotal, setExperimentsTotal] = useState(0);
+  const [confirmPhase, setConfirmPhase] = useState(false);
 
   const loadProject = async () => {
     try {
@@ -59,23 +58,15 @@ const ProjectDetail: React.FC = () => {
     }
   };
 
-  const loadDatasets = async () => {
-    try {
-      const res = await client.get<DatasetInfo[]>(`/projects/${pid}/datasets`);
-      setDatasets(res.data);
-    } catch {
-      setDatasets([]);
-    }
-  };
-
   useEffect(() => {
     loadProject();
-    loadDatasets();
     (async () => {
       try {
-        const cols = await listColumns();
-        setColumnsMeta(cols);
-      } catch {}
+        const res = await client.get(`/projects/${pid}/datasets`, { params: { page: 1, per_page: 1 } });
+        setExperimentsTotal(res.data.total || 0);
+      } catch {
+        setExperimentsTotal(0);
+      }
     })();
   }, [pid]);
 
@@ -108,6 +99,137 @@ const ProjectDetail: React.FC = () => {
       setLoading(false);
     }
   };
+  const onOpenDelete = () => {
+    setPassword('');
+    setConfirmPhase(false);
+    setDeleteOpen(true);
+  };
+  const onOkDelete = async () => {
+    if (!confirmPhase) {
+      setConfirmPhase(true);
+      return;
+    }
+    await onDelete();
+  };
+
+  return (
+    <div>
+      <div style={{ 
+        marginBottom: 16, 
+        padding: '24px', 
+        background: 'linear-gradient(135deg, #e6f7ff 0%, #ffffff 100%)', 
+        borderRadius: 12, 
+        border: '1px solid #bae7ff'
+      }}>
+        <Title level={3} style={{ color: '#1890ff', margin: 0 }}>项目概览</Title>
+        <Text type="secondary">管理模型与实验，快速进入构建与训练流程</Text>
+      </div>
+      {project && (
+        <Card>
+          <Space direction="vertical" style={{ width: '100%' }}>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Statistic title="项目名称" value={project.name} />
+              </Col>
+              <Col span={12}>
+                <Statistic title="模型数量" value={project.models_count} />
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Statistic title="实验数量" value={experimentsTotal} />
+              </Col>
+              <Col span={12}>
+                <Text type="secondary">更新于：{project.updated_at}</Text>
+              </Col>
+            </Row>
+            {!editOpen && (
+              <Button onClick={() => setEditOpen(true)}>更改项目</Button>
+            )}
+            {editOpen && (
+              <Form
+                layout="vertical"
+                initialValues={{ name: project.name, description: project.description }}
+                onFinish={onUpdate}
+              >
+                <Form.Item label="项目名称" name="name">
+                  <Input />
+                </Form.Item>
+                <Form.Item label="项目介绍" name="description">
+                  <Input.TextArea rows={3} />
+                </Form.Item>
+                <Space>
+                  <Button type="primary" htmlType="submit" loading={loading}>保存修改</Button>
+                  <Button danger onClick={onOpenDelete}>删除项目</Button>
+                </Space>
+              </Form>
+            )}
+          </Space>
+        </Card>
+      )}
+      <Modal
+        title="删除项目"
+        open={deleteOpen}
+        onOk={onOkDelete}
+        onCancel={() => {
+          setDeleteOpen(false);
+          setConfirmPhase(false);
+        }}
+        okText={confirmPhase ? "删除" : "确定"}
+        cancelText="取消"
+        okButtonProps={{ danger: true, loading }}
+        cancelButtonProps={{ type: 'primary' }}
+      >
+        <Space direction="vertical" style={{ width: '100%' }}>
+          <Text>请输入密码以确认删除：</Text>
+          <Input.Password value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" />
+          {confirmPhase && (
+            <Text type="danger">确定要删除吗？数据无法找回。</Text>
+          )}
+        </Space>
+      </Modal>
+    </div>
+  );
+};
+
+export const ProjectBuild: React.FC = () => {
+  const { pid } = useParams<{ pid: string }>();
+  const [columnsMeta, setColumnsMeta] = useState<ColumnInfo[]>([]);
+  const [filters, setFilters] = useState<FilterItem[]>([{ column: '', operator: '=', value: '' }]);
+  const [datasets, setDatasets] = useState<DatasetInfo[]>([]);
+  const [datasetName, setDatasetName] = useState('');
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(false);
+
+  const loadDatasets = async (overridePage?: number, overridePerPage?: number) => {
+    setLoading(true);
+    try {
+      const currentPage = overridePage ?? page;
+      const currentPerPage = overridePerPage ?? perPage;
+      const res = await client.get(`/projects/${pid}/datasets`, { params: { page: currentPage, per_page: currentPerPage } });
+      setDatasets(res.data.items || []);
+      setTotal(res.data.total || 0);
+      if (overridePage) setPage(overridePage);
+      if (overridePerPage) setPerPage(overridePerPage);
+    } catch {
+      setDatasets([]);
+      setTotal(0);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const cols = await listColumns();
+        setColumnsMeta(cols);
+      } catch {}
+    })();
+    loadDatasets();
+  }, [pid]);
 
   const onAddFilter = () => {
     setFilters(prev => [...prev, { column: '', operator: '=', value: '' }]);
@@ -123,6 +245,11 @@ const ProjectDetail: React.FC = () => {
     setFilters(prev => (prev.length > 1 ? prev.filter((_, i) => i !== idx) : prev));
   };
 
+  const operatorsFor = (col?: string) => {
+    const type = (columnsMeta.find(c => c.name === col)?.type || '').toUpperCase();
+    return type.match(/INT|REAL|NUM/) ? numericOperators : textOperators;
+  };
+
   const saveDataset = async () => {
     if (!datasetName.trim()) {
       message.warning('请输入数据集名称');
@@ -133,135 +260,107 @@ const ProjectDetail: React.FC = () => {
       const res = await client.post<DatasetInfo>(`/projects/${pid}/datasets`, { name: datasetName.trim(), filters: cleanFilters });
       message.success(`已保存数据集：${res.data.name}（${res.data.rows_count} 条）`);
       setDatasetName('');
-      await loadDatasets();
+      await loadDatasets(1, perPage);
     } catch (e: any) {
       message.error(e?.response?.data?.detail || '保存数据集失败');
     }
   };
 
-  const menu = (
-    <Card style={{ width: 240 }}>
-      <Space direction="vertical" style={{ width: '100%' }}>
-        <Button type="link" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>概览</Button>
-        <Button type="link" onClick={() => document.getElementById('dataset')?.scrollIntoView({ behavior: 'smooth' })}>数据构建</Button>
-        <Button type="link" onClick={() => document.getElementById('train')?.scrollIntoView({ behavior: 'smooth' })}>运行训练</Button>
-        <Button type="link" onClick={() => document.getElementById('compare')?.scrollIntoView({ behavior: 'smooth' })}>结果对比</Button>
-      </Space>
-    </Card>
-  );
-
-  const operatorsFor = (col?: string) => {
-    const type = (columnsMeta.find(c => c.name === col)?.type || '').toUpperCase();
-    return type.match(/INT|REAL|NUM/) ? numericOperators : textOperators;
-  };
-
   return (
-    <div style={{ display: 'flex', gap: 16 }}>
-      <div>{menu}</div>
-      <div style={{ flex: 1 }}>
-        <Title level={3}>项目特别页</Title>
-        {project && (
-          <Card style={{ marginBottom: 16 }}>
-            <Space direction="vertical" style={{ width: '100%' }}>
-              <Text>项目ID：{project.id}</Text>
-              <Form
-                layout="vertical"
-                initialValues={{ name: project.name, description: project.description }}
-                onFinish={onUpdate}
-              >
-                <Form.Item label="项目名称" name="name">
-                  <Input />
-                </Form.Item>
-                <Form.Item label="项目介绍" name="description">
-                  <Input.TextArea rows={3} />
-                </Form.Item>
-                <Space>
-                  <Button type="primary" htmlType="submit" loading={loading}>保存修改</Button>
-                  <Button danger onClick={() => Modal.confirm({
-                    title: '删除项目',
-                    content: (
-                      <div>
-                        <Text>请输入密码以确认删除：</Text>
-                        <Input.Password value={password} onChange={(e) => setPassword(e.target.value)} />
-                      </div>
-                    ),
-                    okText: '删除',
-                    cancelText: '取消',
-                    onOk: onDelete,
-                    okButtonProps: { danger: true, loading },
-                  })}>删除项目</Button>
-                </Space>
-              </Form>
-            </Space>
-          </Card>
-        )}
-
-        <div id="dataset">
-          <Card title="数据构建" style={{ marginBottom: 16 }}>
-            <Space direction="vertical" style={{ width: '100%' }}>
-              <Space align="center">
-                <Text strong>筛选条件</Text>
-                <Button type="dashed" onClick={onAddFilter}>添加条件</Button>
-              </Space>
-              {filters.map((f, idx) => (
-                <Space key={idx} style={{ width: '100%' }}>
-                  <Select
-                    placeholder="选择列"
-                    value={f.column || undefined}
-                    onChange={(v) => onChangeFilter(idx, { column: v })}
-                    style={{ minWidth: 200 }}
-                    options={columnsMeta.map(c => ({ label: `${c.name} (${c.type})`, value: c.name }))}
-                  />
-                  <Select
-                    placeholder="运算符"
-                    value={f.operator}
-                    onChange={(v) => onChangeFilter(idx, { operator: v })}
-                    style={{ minWidth: 140 }}
-                    options={operatorsFor(f.column)}
-                  />
-                  <Input
-                    placeholder="输入筛选值"
-                    value={String(f.value ?? '')}
-                    onChange={(e) => onChangeFilter(idx, { value: e.target.value })}
-                    style={{ minWidth: 240 }}
-                  />
-                  <Button danger onClick={() => onRemoveFilter(idx)}>移除</Button>
-                </Space>
-              ))}
-              <Space>
-                <Input placeholder="数据集名称" value={datasetName} onChange={(e) => setDatasetName(e.target.value)} style={{ minWidth: 240 }} />
-                <Button type="primary" onClick={saveDataset}>保存为数据集</Button>
-              </Space>
-              <List
-                header="已保存数据集"
-                dataSource={datasets}
-                renderItem={(item) => (
-                  <List.Item>
-                    <Space direction="vertical">
-                      <Text>{item.name}（{item.rows_count} 条）</Text>
-                      <Text type="secondary">创建于 {item.created_at}</Text>
-                    </Space>
-                  </List.Item>
-                )}
+    <div>
+      <Title level={3}>数据构建</Title>
+      <Card style={{ marginBottom: 16 }}>
+        <Space direction="vertical" style={{ width: '100%' }}>
+          <Space align="center">
+            <Text strong>筛选条件</Text>
+            <Button type="dashed" onClick={onAddFilter}>添加条件</Button>
+          </Space>
+          {filters.map((f, idx) => (
+            <Space key={idx} style={{ width: '100%' }}>
+              <Select
+                placeholder="选择列"
+                value={f.column || undefined}
+                onChange={(v) => onChangeFilter(idx, { column: v })}
+                style={{ minWidth: 200 }}
+                options={columnsMeta.map(c => ({ label: `${c.name} (${c.type})`, value: c.name }))}
               />
+              <Select
+                placeholder="运算符"
+                value={f.operator}
+                onChange={(v) => onChangeFilter(idx, { operator: v })}
+                style={{ minWidth: 140 }}
+                options={operatorsFor(f.column)}
+              />
+              <Input
+                placeholder="输入筛选值"
+                value={String(f.value ?? '')}
+                onChange={(e) => onChangeFilter(idx, { value: e.target.value })}
+                style={{ minWidth: 240 }}
+              />
+              <Button danger onClick={() => onRemoveFilter(idx)}>移除</Button>
             </Space>
-          </Card>
-        </div>
-
-        <div id="train">
-          <Card title="运行训练（占位）" style={{ marginBottom: 16 }}>
-            <Text>后续接入训练配置与调度。</Text>
-          </Card>
-        </div>
-
-        <div id="compare">
-          <Card title="结果对比（占位）">
-            <Text>后续接入评估结果展示与对比。</Text>
-          </Card>
-        </div>
-      </div>
+          ))}
+          <Space>
+            <Input placeholder="数据集名称" value={datasetName} onChange={(e) => setDatasetName(e.target.value)} style={{ minWidth: 240 }} />
+            <Button type="primary" onClick={saveDataset}>保存为数据集</Button>
+          </Space>
+        </Space>
+      </Card>
+      <Card title="已保存数据集">
+        <Table
+          dataSource={datasets}
+          rowKey={(r) => r.id}
+          loading={loading}
+          columns={[
+            { title: '数据集名称', dataIndex: 'name' },
+            { title: '行数', dataIndex: 'rows_count' },
+            { title: '创建时间', dataIndex: 'created_at' },
+          ]}
+          pagination={{
+            current: page,
+            pageSize: perPage,
+            total,
+            showSizeChanger: true,
+            pageSizeOptions: ['10', '25', '50', '100'],
+            onChange: (p, ps) => loadDatasets(p, ps),
+          }}
+        />
+      </Card>
     </div>
   );
 };
 
-export default ProjectDetail;
+export const ProjectTrain: React.FC = () => {
+  return (
+    <div>
+      <Title level={3}>运行训练</Title>
+      <Card>
+        <Text>后续接入训练配置与调度。</Text>
+      </Card>
+    </div>
+  );
+};
+
+export const ProjectModelBuild: React.FC = () => {
+  return (
+    <div>
+      <Title level={3}>模型构建</Title>
+      <Card>
+        <Text>在此配置与管理模型结构、特征选择与训练计划。</Text>
+      </Card>
+    </div>
+  );
+};
+
+export const ProjectCompare: React.FC = () => {
+  return (
+    <div>
+      <Title level={3}>结果对比</Title>
+      <Card>
+        <Text>后续接入评估结果展示与对比。</Text>
+      </Card>
+    </div>
+  );
+};
+
+export default ProjectOverview;

@@ -5,9 +5,11 @@ import Register from './pages/Register/Register';
 import MainLayout from './layouts/MainLayout';
 import DashboardHome from './pages/DashboardHome';
 import ProjectList from './pages/ProjectList';
-import ProjectDetail from './pages/ProjectDetail';
+import { ProjectOverview, ProjectBuild, ProjectModelBuild, ProjectTrain, ProjectCompare } from './pages/ProjectDetail';
 import DataManagement from './pages/DataManagement';
 import TrainingMonitor from './pages/TrainingMonitor';
+import Docs from './pages/Docs';
+import Recycle from './pages/Recycle';
 import { existsUser } from './api/auth';
 import { Spin } from 'antd';
 
@@ -46,9 +48,18 @@ const App: React.FC = () => {
         <Route path="/dashboard" element={<MainLayout />}>
           <Route index element={<DashboardHome />} />
           <Route path="projects" element={<ProjectList />} />
-          <Route path="projects/:pid" element={<ProjectDetail />} />
+          <Route path="projects/:pid">
+            <Route index element={<Navigate to="overview" replace />} />
+            <Route path="overview" element={<ProjectOverview />} />
+            <Route path="build" element={<ProjectBuild />} />
+            <Route path="model-build" element={<ProjectModelBuild />} />
+            <Route path="train" element={<ProjectTrain />} />
+            <Route path="compare" element={<ProjectCompare />} />
+          </Route>
           <Route path="data" element={<DataManagement />} />
           <Route path="monitor" element={<TrainingMonitor />} />
+          <Route path="docs" element={<Docs />} />
+          <Route path="recycle" element={<Recycle />} />
         </Route>
       </Routes>
     </BrowserRouter>

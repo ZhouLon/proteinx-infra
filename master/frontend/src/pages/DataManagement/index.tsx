@@ -27,8 +27,11 @@ const DataManagement: React.FC = () => {
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(25);
   const [total, setTotal] = useState(0);
+  const [durationMs, setDurationMs] = useState<number | undefined>(undefined);
+  const [tableHeight, setTableHeight] = useState<number>(480);
 
   const isFetchingRef = useRef<boolean>(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -42,6 +45,19 @@ const DataManagement: React.FC = () => {
     })();
   }, []);
 
+  useEffect(() => {
+    const computeHeight = () => {
+      const h = window.innerHeight;
+      const headerAndControls = 260; // 估算顶部控件与边距高度
+      const paginationArea = 64;
+      const available = Math.max(320, h - headerAndControls - paginationArea);
+      setTableHeight(available);
+    };
+    computeHeight();
+    window.addEventListener('resize', computeHeight);
+    return () => window.removeEventListener('resize', computeHeight);
+  }, []);
+
   const fetchData = async (overridePage?: number, overridePerPage?: number) => {
     if (isFetchingRef.current) return;
     isFetchingRef.current = true;
@@ -53,6 +69,7 @@ const DataManagement: React.FC = () => {
       const res = await queryRecords(undefined, currentPage, currentPerPage, cleanFilters);
       setRows(res.rows);
       setTotal(res.total);
+      setDurationMs(res.duration_ms);
       if (overridePage) setPage(overridePage);
       if (overridePerPage) setPerPage(overridePerPage);
     } catch (e) {
@@ -99,9 +116,9 @@ const DataManagement: React.FC = () => {
   };
 
   return (
-    <div>
+    <div ref={containerRef}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <Title level={3}>数据管理</Title>
+        <Title level={3} style={{ margin: 0, color: '#1890ff' }}>数据管理</Title>
       </div>
 
       <div style={{ padding: 16, background: '#fff', borderRadius: 8, marginBottom: 16 }}>
@@ -151,7 +168,10 @@ const DataManagement: React.FC = () => {
       </div>
 
       <div style={{ marginBottom: 12 }}>
-        <Text>找到 {total} 条记录</Text>
+        <Space>
+          <Text>找到 {total} 条记录</Text>
+          {durationMs !== undefined && <Text type="secondary">本次查询耗时 {durationMs} ms</Text>}
+        </Space>
       </div>
 
       <Table
@@ -159,6 +179,7 @@ const DataManagement: React.FC = () => {
         columns={tableColumns}
         rowKey={rowKeySelector}
         loading={loading}
+        scroll={{ y: tableHeight }}
         pagination={{
           current: page,
           pageSize: perPage,

@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Layout, Menu, theme, Typography, Avatar } from 'antd';
+import { Layout, Menu, theme, Typography, Avatar, Button } from 'antd';
 import {
   DesktopOutlined,
   FileOutlined,
   LineChartOutlined,
-  UserOutlined
+  UserOutlined,
+  BookOutlined,
+  DeleteOutlined
 } from '@ant-design/icons';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { getCurrentUser } from '../api/auth';
@@ -21,12 +23,17 @@ const MainLayout: React.FC = () => {
 
   const projectDetail = location.pathname.startsWith('/dashboard/projects/') && location.pathname !== '/dashboard/projects';
   const items = projectDetail ? [
-    { key: `/dashboard/projects/${location.pathname.split('/').slice(-1)[0]}`, icon: <DesktopOutlined />, label: '项目特别页' },
-    { key: '/dashboard/projects', icon: <FileOutlined />, label: '返回项目首页' },
+    { key: `/dashboard/projects/${location.pathname.split('/')[3]}/overview`, icon: <DesktopOutlined />, label: '概览' },
+    { key: `/dashboard/projects/${location.pathname.split('/')[3]}/build`, icon: <FileOutlined />, label: '数据构建' },
+    { key: `/dashboard/projects/${location.pathname.split('/')[3]}/model-build`, icon: <FileOutlined />, label: '模型构建' },
+    { key: `/dashboard/projects/${location.pathname.split('/')[3]}/train`, icon: <LineChartOutlined />, label: '运行训练' },
+    { key: `/dashboard/projects/${location.pathname.split('/')[3]}/compare`, icon: <LineChartOutlined />, label: '结果对比' },
   ] : [
     { key: '/dashboard/projects', icon: <DesktopOutlined />, label: '项目首页' },
     { key: '/dashboard/data', icon: <FileOutlined />, label: '数据管理' },
     { key: '/dashboard/monitor', icon: <LineChartOutlined />, label: '训练监控' },
+    { key: '/dashboard/docs', icon: <BookOutlined />, label: '文档查看' },
+    { key: '/dashboard/recycle', icon: <DeleteOutlined />, label: '回收站' },
   ];
 
   const handleMenuClick = (e: { key: string }) => {
@@ -63,14 +70,24 @@ const MainLayout: React.FC = () => {
             </Text>
           )}
         </div>
-        <Menu 
-          theme="dark" 
-          defaultSelectedKeys={['/dashboard/projects']} 
-          selectedKeys={[projectDetail ? `/dashboard/projects/${location.pathname.split('/').slice(-1)[0]}` : location.pathname]}
-          mode="inline" 
-          items={items} 
-          onClick={handleMenuClick}
-        />
+        <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100% - 96px)' }}>
+          {projectDetail && (
+            <div style={{ padding: 16 }}>
+              <Button block onClick={() => navigate('/dashboard/projects')}>
+                {collapsed ? '返回' : '返回项目首页'}
+              </Button>
+            </div>
+          )}
+          <Menu 
+            theme="dark" 
+            defaultSelectedKeys={['/dashboard/projects']} 
+            selectedKeys={[location.pathname]}
+            mode="inline" 
+            items={items} 
+            onClick={handleMenuClick}
+            style={{ flex: 1 }}
+          />
+        </div>
       </Sider>
       <Layout>
         <Header style={{ 
