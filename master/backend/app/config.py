@@ -8,7 +8,10 @@ WORKDIR_CONTAINER = os.environ.get("WORKDIR_CONTAINER", "/data")
 WORKDIR = WORKDIR_CONTAINER
 USER_FILE = os.path.join(WORKDIR, ".user")
 METADATA_DB = os.path.join(WORKDIR, "metadata", "database.db")
-METADATA_TABLE = os.environ.get("METADATA_TABLE", None)
+MUTATIONS_TABLE = "mutations"
+SOURCES_TABLE = "sources"
+MUTATION_REGEX = r"^([A-Za-z])(\d+)([A-Za-z])$"
+METADATA_TABLE = os.environ.get("METADATA_TABLE", MUTATIONS_TABLE)
 METADATA_DEFAULT_PAGE_SIZE = int(os.environ.get("METADATA_DEFAULT_PAGE_SIZE", "25"))
 METADATA_MAX_PAGE_SIZE = int(os.environ.get("METADATA_MAX_PAGE_SIZE", "100"))
 

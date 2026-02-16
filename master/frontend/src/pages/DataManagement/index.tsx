@@ -29,6 +29,7 @@ const DataManagement: React.FC = () => {
   const [total, setTotal] = useState(0);
   const [durationMs, setDurationMs] = useState<number | undefined>(undefined);
   const [tableHeight, setTableHeight] = useState<number>(480);
+  const [displayColumns, setDisplayColumns] = useState<string[]>([]);
 
   const isFetchingRef = useRef<boolean>(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -58,12 +59,23 @@ const DataManagement: React.FC = () => {
     return () => window.removeEventListener('resize', computeHeight);
   }, []);
 
-  const fetchData = async (overridePage?: number, overridePerPage?: number) => {
+  useEffect(() => {
+    const acc = new Set<string>(columnsMeta.map(c => c.name));
+    for (const r of rows) {
+      for (const k of Object.keys(r)) {
+        acc.add(k);
+      }
+    }
+    setDisplayColumns(Array.from(acc));
+  }, [columnsMeta, rows]);
+
+  const fetchData = async (overridePage?: number, overridePerPage?: number, overrideFilters?: FilterItem[]) => {
     if (isFetchingRef.current) return;
     isFetchingRef.current = true;
     setLoading(true);
     try {
-      const cleanFilters = filters.filter(f => f.column && (f.value !== '' && f.value !== undefined));
+      const baseFilters = overrideFilters ?? filters;
+      const cleanFilters = baseFilters.filter(f => f.column && (f.value !== '' && f.value !== undefined));
       const currentPage = overridePage ?? page;
       const currentPerPage = overridePerPage ?? perPage;
       const res = await queryRecords(undefined, currentPage, currentPerPage, cleanFilters);
@@ -81,21 +93,102 @@ const DataManagement: React.FC = () => {
     }
   };
 
-  // 不自动查询；仅在点击按钮或分页交互时触发
   useEffect(() => {
-    // 初始化不查询，避免按钮在刷新后灰色
-    return;
+    fetchData(1);
   }, []);
 
   const tableColumns = useMemo(() => {
-    const cols = columnsMeta.map(c => ({
-      title: c.name,
-      dataIndex: c.name,
-      key: c.name,
-      ellipsis: true,
-    }));
+    const cols = displayColumns.map(name => {
+      const col: any = {
+        title: name,
+        dataIndex: name,
+        key: name,
+        ellipsis: true,
+      };
+      if (name === 'id') col.width = 80;
+      if (name === 'mut_num') col.width = 80;
+      if (name === 'DMS_score_bin') col.width = 100;
+      if (name === 'DMS_score') {
+        col.render = (value: any) => {
+          const num = typeof value === 'number' ? value : (value == null ? null : parseFloat(value));
+          return typeof num === 'number' && !Number.isNaN(num) ? num.toFixed(4) : value;
+        };
+      }
+      if (name === 'sequence' || name === 'source') {
+        col.render = (text: any) => {
+          const str = String(text ?? '');
+          const onEnter = (e: React.MouseEvent<HTMLSpanElement>) => {
+            const el = e.currentTarget;
+            el.style.background = '#e6f7ff';
+            el.style.boxShadow = '0 0 0 2px #bae7ff inset';
+            el.style.borderRadius = '6px';
+            el.style.transition = 'all .2s';
+          };
+          const onLeave = (e: React.MouseEvent<HTMLSpanElement>) => {
+            const el = e.currentTarget;
+            el.style.background = 'transparent';
+            el.style.boxShadow = 'none';
+          };
+          const copyText = async (s: string) => {
+            try {
+              if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(s);
+                return true;
+              }
+            } catch {}
+            const ta = document.createElement('textarea');
+            ta.value = s;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.focus();
+            ta.select();
+            let ok = false;
+            try {
+              ok = document.execCommand('copy');
+            } catch {}
+            document.body.removeChild(ta);
+            return ok;
+          };
+          const onClick = async (e: React.MouseEvent<HTMLSpanElement>) => {
+            const el = e.currentTarget;
+            const ok = await copyText(str);
+            if (ok) {
+              el.style.background = '#f6ffed';
+              el.style.boxShadow = '0 0 0 2px #b7eb8f inset';
+              message.success('已复制');
+              setTimeout(() => {
+                el.style.background = 'transparent';
+                el.style.boxShadow = 'none';
+              }, 600);
+            } else {
+              message.error('复制失败');
+            }
+          };
+          return (
+            <span
+              onMouseEnter={onEnter}
+              onMouseLeave={onLeave}
+              onClick={onClick}
+              style={{
+                display: 'inline-block',
+                maxWidth: 480,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                cursor: 'pointer',
+                padding: '0 6px'
+              }}
+            >
+              {str}
+            </span>
+          );
+        };
+      }
+      return col;
+    });
     return cols;
-  }, [columnsMeta]);
+  }, [displayColumns]);
 
   const rowKeySelector = (record: any) => record.id ?? record.__rowid__ ?? JSON.stringify(record).length;
 
@@ -112,7 +205,13 @@ const DataManagement: React.FC = () => {
   };
 
   const onRemoveFilter = (idx: number) => {
-    setFilters(prev => (prev.length > 1 ? prev.filter((_, i) => i !== idx) : prev));
+    setFilters(prev => {
+      if (prev.length > 1) {
+        return prev.filter((_, i) => i !== idx);
+      }
+      return [{ column: '', operator: '=', value: '' }];
+    });
+    fetchData(1, undefined, []);
   };
 
   return (
@@ -161,7 +260,7 @@ const DataManagement: React.FC = () => {
                 onChange={(e) => onChangeFilter(idx, { value: e.target.value })}
                 style={{ minWidth: 240 }}
               />
-              <Button danger onClick={() => onRemoveFilter(idx)}>移除</Button>
+              <Button danger onClick={() => onRemoveFilter(idx)}>{filters.length > 1 ? '移除' : '清除'}</Button>
             </Space>
           ))}
         </Space>

@@ -6,7 +6,7 @@ import sqlite3
 import json
 from fastapi import HTTPException
 from typing import Optional
-from app.config import METADATA_DB, METADATA_TABLE
+from app.config import METADATA_DB, MUTATIONS_TABLE
 
 def ensure_metadata_db_exists():
     os.makedirs(os.path.dirname(METADATA_DB), exist_ok=True)
@@ -23,10 +23,10 @@ def get_db_conn():
 def resolve_table(conn: sqlite3.Connection, table: Optional[str]) -> str:
     if table:
         return table
-    if METADATA_TABLE:
-        return METADATA_TABLE
     cur = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
     rows = [r["name"] for r in cur.fetchall()]
+    if MUTATIONS_TABLE in rows:
+        return MUTATIONS_TABLE
     if len(rows) == 1:
         return rows[0]
     if "data_table" in rows:

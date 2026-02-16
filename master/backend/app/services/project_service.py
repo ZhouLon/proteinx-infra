@@ -7,7 +7,7 @@ import shutil
 import datetime
 from fastapi import HTTPException
 from typing import List, Dict, Any, Optional
-from app.config import WORKDIR, USER_FILE
+from app.config import WORKDIR, USER_FILE, MUTATIONS_TABLE, SOURCES_TABLE
 from app.models import ProjectInfo, DatasetInfo
 from app.utils.security import hash_password
 from app.utils.common import normalize_name
@@ -53,7 +53,18 @@ def create_dataset(pid: str, name: str, filters: List[Dict[str, Any]], table: Op
         cur = conn.execute(f"PRAGMA table_info({real_table})")
         valid_cols = {row["name"] for row in cur.fetchall()}
         where_sql, where_params = build_where_clause(filters, valid_cols)
-        count_sql = f"SELECT COUNT(*) as cnt FROM {real_table} {where_sql}"
+        join_sources = False
+        if real_table == MUTATIONS_TABLE and filters:
+            for f in (filters or []):
+                if f.get("column") == "source":
+                    join_sources = True
+                    break
+        if join_sources and where_sql:
+            where_sql = where_sql.replace('"source"', 's.source_text')
+        if real_table == MUTATIONS_TABLE and join_sources:
+            count_sql = f"SELECT COUNT(*) as cnt FROM {real_table} m JOIN {SOURCES_TABLE} s ON m.source = s.id {where_sql}"
+        else:
+            count_sql = f"SELECT COUNT(*) as cnt FROM {real_table} {where_sql}"
         cur = conn.execute(count_sql, where_params)
         rows_count = cur.fetchone()["cnt"]
     finally:

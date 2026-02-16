@@ -5,7 +5,7 @@ import Register from './pages/Register/Register';
 import MainLayout from './layouts/MainLayout';
 import DashboardHome from './pages/DashboardHome';
 import ProjectList from './pages/ProjectList';
-import { ProjectOverview, ProjectBuild, ProjectModelBuild, ProjectTrain, ProjectCompare } from './pages/ProjectDetail';
+import { ProjectOverview, ProjectDataBuild, ProjectModelBuild, ProjectTrain, ProjectCompare, ProjectDatasets, ProjectDatasetDetail } from './pages/ProjectDetail';
 import DataManagement from './pages/DataManagement';
 import TrainingMonitor from './pages/TrainingMonitor';
 import Docs from './pages/Docs';
@@ -51,7 +51,9 @@ const App: React.FC = () => {
           <Route path="projects/:pid">
             <Route index element={<Navigate to="overview" replace />} />
             <Route path="overview" element={<ProjectOverview />} />
-            <Route path="build" element={<ProjectBuild />} />
+            <Route path="data-build" element={<ProjectDataBuild />} />
+            <Route path="datasets" element={<ProjectDatasets />} />
+            <Route path="datasets/:did" element={<ProjectDatasetDetail />} />
             <Route path="model-build" element={<ProjectModelBuild />} />
             <Route path="train" element={<ProjectTrain />} />
             <Route path="compare" element={<ProjectCompare />} />
