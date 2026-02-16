@@ -12,10 +12,12 @@ import Docs from './pages/Docs';
 import Recycle from './pages/Recycle';
 import { existsUser } from './api/auth';
 import { Spin } from 'antd';
+import UserPage from './pages/User';
 
 const App: React.FC = () => {
   const [checking, setChecking] = useState(true);
   const [hasUser, setHasUser] = useState<boolean | null>(null);
+  const [authed, setAuthed] = useState<boolean>(!!sessionStorage.getItem('access_token'));
 
   useEffect(() => {
     const run = async () => {
@@ -31,6 +33,16 @@ const App: React.FC = () => {
     run();
   }, []);
 
+  useEffect(() => {
+    const handler = () => {
+      setAuthed(!!sessionStorage.getItem('access_token'));
+    };
+    window.addEventListener('px-auth', handler as any);
+    return () => {
+      window.removeEventListener('px-auth', handler as any);
+    };
+  }, []);
+
   if (checking) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
@@ -42,12 +54,13 @@ const App: React.FC = () => {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Navigate to={hasUser ? "/login" : "/register"} replace />} />
+        <Route path="/" element={<Navigate to={authed ? "/dashboard" : (hasUser ? "/login" : "/register")} replace />} />
         <Route path="/register" element={<Register />} />
         <Route path="/login" element={<Login />} />
-        <Route path="/dashboard" element={<MainLayout />}>
+        <Route path="/dashboard" element={authed ? <MainLayout /> : <Navigate to="/login" replace />}>
           <Route index element={<DashboardHome />} />
           <Route path="projects" element={<ProjectList />} />
+          <Route path="user" element={<UserPage />} />
           <Route path="projects/:pid">
             <Route index element={<Navigate to="overview" replace />} />
             <Route path="overview" element={<ProjectOverview />} />
@@ -63,6 +76,7 @@ const App: React.FC = () => {
           <Route path="docs" element={<Docs />} />
           <Route path="recycle" element={<Recycle />} />
         </Route>
+        <Route path="*" element={<Navigate to={authed ? "/dashboard" : "/login"} replace />} />
       </Routes>
     </BrowserRouter>
   );

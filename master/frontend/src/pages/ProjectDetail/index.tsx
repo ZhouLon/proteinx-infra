@@ -38,6 +38,23 @@ const numericOperators = [
   { label: '!= 不等于', value: '!=' },
 ];
 
+const opLabelGlobal = (op: string) => {
+  if (op === 'like') return '包含';
+  if (op === '=') return '=';
+  if (op === '!=') return '!=';
+  if (op === '>') return '>';
+  if (op === '<') return '<';
+  if (op === '>=') return '>=';
+  if (op === '<=') return '<=';
+  return op;
+};
+
+const formatDateOnlyGlobal = (s: string) => {
+  if (!s) return s;
+  const idx = s.indexOf('T');
+  return idx > 0 ? s.slice(0, idx) : s;
+};
+
 export const ProjectOverview: React.FC = () => {
   const { pid } = useParams<{ pid: string }>();
   const navigate = useNavigate();
@@ -658,13 +675,47 @@ export const ProjectDatasets: React.FC = () => {
 
 export const ProjectDatasetDetail: React.FC = () => {
   const { pid, did } = useParams<{ pid: string; did: string }>();
+  const [dataset, setDataset] = useState<DatasetInfo | null>(null);
+  const [loading, setLoading] = useState(false);
+  useEffect(() => {
+    const loadDetail = async () => {
+      setLoading(true);
+      try {
+        const res = await client.get(`/projects/${pid}/datasets`, { params: { page: 1, per_page: 10000 } });
+        const items = (res.data?.items || []) as DatasetInfo[];
+        const found = items.find(i => i.id === did) || null;
+        setDataset(found);
+      } catch {
+        setDataset(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadDetail();
+  }, [pid, did]);
   return (
     <div>
-      <Title level={3}>数据集详情</Title>
-      <Card>
+      <Title level={3}>数据详情：{dataset?.name || did}</Title>
+      <Card loading={loading} style={{ marginBottom: 16 }}>
+        <Space direction="vertical" style={{ width: '100%' }}>
+          <Text>创建时间：{dataset?.created_at ? formatDateOnlyGlobal(dataset.created_at) : '—'}</Text>
+          <div>
+            <Text>筛选条件：</Text>
+            <div style={{ marginTop: 8 }}>
+              {!dataset?.filters || dataset.filters.length === 0 ? (
+                <div>空查询</div>
+              ) : (
+                dataset.filters.map((f, i) => (
+                  <div key={i}>{`${f.column} ${opLabelGlobal(String(f.operator || ''))} ${String(f.value ?? '')}`}</div>
+                ))
+              )}
+            </div>
+          </div>
+          <Text>数据量：{dataset?.rows_count ?? '—'}</Text>
+        </Space>
+      </Card>
+      <Card title="分析与可视化" loading={loading}>
         <Space direction="vertical">
-          <Text>目标项目：{pid}</Text>
-          <Text>数据集ID：{did}</Text>
           <Text strong>突变位点呈现（频率，活性加权）</Text>
           <Text strong>上位效应计算</Text>
           <Text strong>突变位点数比例</Text>

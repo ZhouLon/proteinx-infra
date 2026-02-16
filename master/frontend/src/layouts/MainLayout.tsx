@@ -63,10 +63,10 @@ const MainLayout: React.FC = () => {
           gap: 12, 
           padding: '24px 16px',
           transition: 'all 0.2s'
-        }}>
-          <Avatar size={collapsed ? 32 : 48} icon={<UserOutlined />} style={{ backgroundColor: '#1890ff' }} />
+        }} onClick={() => navigate('/dashboard/user')}>
+          <Avatar size={collapsed ? 32 : 48} icon={<UserOutlined />} style={{ backgroundColor: '#1890ff', cursor: 'pointer' }} />
           {!collapsed && (
-            <Text style={{ color: '#fff', fontSize: '18px', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <Text style={{ color: '#fff', fontSize: '18px', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'pointer' }}>
               {username}
             </Text>
           )}

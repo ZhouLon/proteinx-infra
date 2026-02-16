@@ -13,9 +13,12 @@ const Login: React.FC = () => {
   const onFinish = async (values: any) => {
     setLoading(true);
     try {
-      await login({ username: values.username, password: values.password });
+      const res = await login({ username: values.username, password: values.password });
+      sessionStorage.setItem('access_token', res.access_token);
+      sessionStorage.setItem('refresh_token', res.refresh_token);
+      window.dispatchEvent(new Event('px-auth'));
       message.success('登录成功');
-      navigate('/dashboard');
+      navigate('/dashboard', { replace: true });
     } catch (e: any) {
       message.error(e?.response?.data?.detail || '用户名或密码错误');
     } finally {
