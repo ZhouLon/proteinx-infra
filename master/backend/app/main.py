@@ -11,9 +11,10 @@ from app.routes.auth import router as auth_router
 from app.routes.projects import router as projects_router
 from app.routes.metadata import router as metadata_router
 from app.routes.recycle import router as recycle_router
-from app.routes.files_jobs_overview import router as fj_router
-from app.config import WORKDIR
+from app.routes.jobs import router as jobs_router
 from app.utils.security import ban_manager
+from app.config import WORKDIR
+
 import os
 
 app = FastAPI(title="ProteinX Infra Master API", version="1.0.0")
@@ -39,7 +40,7 @@ app.include_router(auth_router)
 app.include_router(projects_router)
 app.include_router(metadata_router)
 app.include_router(recycle_router)
-app.include_router(fj_router)
+app.include_router(jobs_router)
 
 os.makedirs(os.path.join(WORKDIR, "logs"), exist_ok=True)
 

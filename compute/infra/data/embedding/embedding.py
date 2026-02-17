@@ -2,7 +2,7 @@ from torch import Tensor
 import torch
 import pandas as pd
 from pandas.arrays import StringArray
-from src.const import aa_map
+from infra.const import aa_map
 
 from typing import Tuple, Optional, Union, List, Dict
 import numpy as np

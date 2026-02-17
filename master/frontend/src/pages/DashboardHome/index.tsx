@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Typography, Row, Col, Button, Statistic, Space, Divider } from 'antd';
+import { Card, Typography, Row, Col, Button, Space, Divider } from 'antd';
 import { 
   RocketOutlined, 
   CloudUploadOutlined, 
@@ -118,27 +118,11 @@ const DashboardHome: React.FC = () => {
 
       {/* System Status Summary (Mock) */}
       <Row gutter={[24, 24]}>
-        <Col xs={24} md={12}>
-          <Card title="系统状态概览" bordered={false} style={{ borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
-            <Row gutter={16} style={{ textAlign: 'center' }}>
-              <Col span={8}>
-                <Statistic title="活跃节点" value={3} valueStyle={{ color: '#3f8600' }} />
-              </Col>
-              <Col span={8}>
-                <Statistic title="运行中任务" value={5} valueStyle={{ color: '#1890ff' }} />
-              </Col>
-              <Col span={8}>
-                <Statistic title="累计训练时长" value={128} suffix="小时" />
-              </Col>
-            </Row>
-          </Card>
-        </Col>
-        <Col xs={24} md={12}>
+        <Col xs={24} md={24}>
           <Card title="最新公告" bordered={false} style={{ borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
              <ul style={{ paddingLeft: 20, margin: 0 }}>
-               <li style={{ marginBottom: 8 }}><Text type="secondary">[2026-02-15]</Text> 系统将于本周五进行例行维护。</li>
-               <li style={{ marginBottom: 8 }}><Text type="secondary">[2026-02-10]</Text> 新增 AlphaFold-Multimer 预训练模型支持。</li>
-               <li><Text type="secondary">[2026-02-01]</Text> 欢迎使用 ProteinX Infra v1.0！</li>
+               <li style={{ marginBottom: 8 }}><Text type="secondary">[2026-02-18]</Text> 本系统正在添加队列功能。</li>
+               <li><Text type="secondary">[2026-01-30]</Text> 欢迎使用 ProteinX Infra v1.0！</li>
              </ul>
           </Card>
         </Col>

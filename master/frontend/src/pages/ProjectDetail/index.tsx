@@ -726,11 +726,58 @@ export const ProjectDatasetDetail: React.FC = () => {
 };
 
 export const ProjectTrain: React.FC = () => {
+  const { pid } = useParams<{ pid: string }>();
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [form] = Form.useForm();
+  const onSubmit = async () => {
+    try {
+      const values = await form.validateFields();
+      setLoading(true);
+      const params = {
+        name: values.name,
+        config: {
+          model_type: values.model_type,
+          dataset_path: values.dataset_path,
+          epochs: Number(values.epochs),
+          learning_rate: Number(values.learning_rate),
+          batch_size: Number(values.batch_size || 32),
+        }
+      };
+      const res = await client.post(`/projects/${pid}/jobs`, params);
+      message.success(`任务已创建：${res.data?.id}`);
+      navigate(`/dashboard/projects/${pid}/experiments`);
+    } catch (e: any) {
+      message.error(e?.response?.data?.detail || '提交失败');
+    } finally {
+      setLoading(false);
+    }
+  };
   return (
     <div>
       <Title level={3}>运行训练</Title>
       <Card>
-        <Text>后续接入训练配置与调度。</Text>
+        <Form form={form} layout="vertical" initialValues={{ epochs: 10, learning_rate: 0.001, batch_size: 32 }}>
+          <Form.Item label="实验名称" name="name" rules={[{ required: true, message: '请输入实验名称' }]}>
+            <Input placeholder="如：proteingo-critic-实验1" />
+          </Form.Item>
+          <Form.Item label="模型名称" name="model_type" rules={[{ required: true, message: '请输入模型名称' }]}>
+            <Input placeholder="如：resnet50 或 自定义模型标识" />
+          </Form.Item>
+          <Form.Item label="数据集路径" name="dataset_path" rules={[{ required: true, message: '请输入数据集路径' }]}>
+            <Input placeholder="/data/projects/.../datasets/xxx.csv 或 目录路径" />
+          </Form.Item>
+          <Form.Item label="训练轮数" name="epochs" rules={[{ required: true, message: '请输入训练轮数' }]}>
+            <Input type="number" min={1} placeholder="10" />
+          </Form.Item>
+          <Form.Item label="学习率" name="learning_rate" rules={[{ required: true, message: '请输入学习率' }]}>
+            <Input type="number" step="0.0001" placeholder="0.001" />
+          </Form.Item>
+          <Form.Item label="Batch Size" name="batch_size">
+            <Input type="number" min={1} placeholder="32" />
+          </Form.Item>
+          <Button type="primary" onClick={onSubmit} loading={loading}>提交训练任务</Button>
+        </Form>
       </Card>
     </div>
   );
@@ -758,4 +805,107 @@ export const ProjectCompare: React.FC = () => {
   );
 };
 
+export const ProjectExperiments: React.FC = () => {
+  const { pid } = useParams<{ pid: string }>();
+  const navigate = useNavigate();
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState<string | undefined>(undefined);
+  const load = async () => {
+    setLoading(true);
+    try {
+      const res = await client.get(`/projects/${pid}/jobs`, { params: { status } });
+      setItems(res.data?.items || []);
+    } catch {
+      setItems([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+  useEffect(() => {
+    load();
+    const t = setInterval(load, 5000);
+    return () => {
+      if (t) clearInterval(t);
+    };
+  }, [pid, status]);
+  return (
+    <div>
+      <Title level={3}>实验记录</Title>
+      <Card>
+        <div style={{ marginBottom: 12 }}>
+          <Space>
+            <Button onClick={() => setStatus(undefined)} type={!status ? 'primary' : 'default'}>全部</Button>
+            <Button onClick={() => setStatus('PENDING')} type={status === 'PENDING' ? 'primary' : 'default'}>待执行</Button>
+            <Button onClick={() => setStatus('RUNNING')} type={status === 'RUNNING' ? 'primary' : 'default'}>执行中</Button>
+            <Button onClick={() => setStatus('SUCCEEDED')} type={status === 'SUCCEEDED' ? 'primary' : 'default'}>成功</Button>
+            <Button onClick={() => setStatus('FAILED')} type={status === 'FAILED' ? 'primary' : 'default'}>失败</Button>
+          </Space>
+        </div>
+        <Table
+          dataSource={items}
+          rowKey={(r) => r.id}
+          loading={loading}
+          columns={[
+            { title: '任务ID', dataIndex: 'id' },
+            { title: '创建时间', dataIndex: 'created_at' },
+            { title: '状态', dataIndex: 'status' },
+            { title: '进度', dataIndex: 'progress', render: (p: number) => (typeof p === 'number' ? `${p}%` : '—') },
+            { title: '耗时(ms)', dataIndex: 'elapsed_ms' },
+            { title: '操作', render: (_: any, r: any) => (<Button type="link" onClick={() => navigate(`/dashboard/projects/${pid}/experiments/${r.id}`)}>查看详情</Button>) }
+          ]}
+        />
+      </Card>
+    </div>
+  );
+};
+
+export const ProjectExperimentDetail: React.FC = () => {
+  const { pid, experimentId } = useParams<{ pid: string; experimentId: string }>();
+  const [detail, setDetail] = useState<any>(null);
+  const [logs, setLogs] = useState<string>('');
+  const [loading, setLoading] = useState(false);
+  const load = async () => {
+    setLoading(true);
+    try {
+      const d = await client.get(`/projects/${pid}/jobs/${experimentId}`);
+      setDetail(d.data);
+      const l = await client.get(`/projects/${pid}/jobs/${experimentId}/logs`);
+      setLogs(l.data?.logs || '');
+    } catch {
+      setDetail(null);
+      setLogs('');
+    } finally {
+      setLoading(false);
+    }
+  };
+  useEffect(() => {
+    load();
+    const t = setInterval(load, 5000);
+    return () => clearInterval(t);
+  }, [pid, experimentId]);
+  const onCancel = async () => {
+    try {
+      await client.post(`/projects/${pid}/jobs/${experimentId}/cancel`);
+    } catch {}
+  };
+  return (
+    <div>
+      <Title level={3}>实验详情 {experimentId}</Title>
+      <Card loading={loading} style={{ marginBottom: 16 }}>
+        <Space direction="vertical" style={{ width: '100%' }}>
+          <Text>状态：{detail?.status || '—'}</Text>
+          <Text>进度：{typeof detail?.progress === 'number' ? `${detail.progress}%` : '—'}</Text>
+          <Text>耗时：{typeof detail?.elapsed_ms === 'number' ? `${detail.elapsed_ms} ms` : '—'}</Text>
+          <Space>
+            <Button danger onClick={onCancel}>终止任务</Button>
+          </Space>
+        </Space>
+      </Card>
+      <Card title="日志输出">
+        <pre style={{ whiteSpace: 'pre-wrap' }}>{logs || '暂无日志'}</pre>
+      </Card>
+    </div>
+  );
+};
 export default ProjectOverview;

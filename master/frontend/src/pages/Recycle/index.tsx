@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Typography, Card, Space, Table, Button, message, Popconfirm } from 'antd';
-import client from '../../api/client';
+import { listRecycleProjects, restoreRecycleProject, deleteRecycleProject } from '../../api/recycle';
 
 const { Title } = Typography;
 
@@ -11,8 +11,8 @@ const Recycle: React.FC = () => {
   const load = async () => {
     setLoading(true);
     try {
-      const res = await client.get('/recycle/projects');
-      setItems(res.data.items || []);
+      const data = await listRecycleProjects();
+      setItems(data.items || []);
     } catch (e: any) {
       message.error(e?.response?.data?.detail || '加载回收站失败');
     } finally {
@@ -26,7 +26,7 @@ const Recycle: React.FC = () => {
 
   const restore = async (id: string) => {
     try {
-      await client.post(`/recycle/projects/${id}/restore`);
+      await restoreRecycleProject(id);
       message.success('已还原');
       await load();
     } catch (e: any) {
@@ -35,7 +35,7 @@ const Recycle: React.FC = () => {
   };
   const remove = async (id: string) => {
     try {
-      await client.delete(`/recycle/projects/${id}`);
+      await deleteRecycleProject(id);
       message.success('已永久删除');
       await load();
     } catch (e: any) {

@@ -22,13 +22,15 @@ const MainLayout: React.FC = () => {
   const [username, setUsername] = useState<string>('用户');
 
   const projectDetail = location.pathname.startsWith('/dashboard/projects/') && location.pathname !== '/dashboard/projects';
+  const pid = projectDetail ? location.pathname.split('/')[3] : '';
   const items = projectDetail ? [
-    { key: `/dashboard/projects/${location.pathname.split('/')[3]}/overview`, icon: <DesktopOutlined />, label: '概览' },
-    { key: `/dashboard/projects/${location.pathname.split('/')[3]}/data-build`, icon: <FileOutlined />, label: '数据构建' },
-    { key: `/dashboard/projects/${location.pathname.split('/')[3]}/datasets`, icon: <FileOutlined />, label: '数据集' },
-    { key: `/dashboard/projects/${location.pathname.split('/')[3]}/model-build`, icon: <FileOutlined />, label: '模型构建' },
-    { key: `/dashboard/projects/${location.pathname.split('/')[3]}/train`, icon: <LineChartOutlined />, label: '运行训练' },
-    { key: `/dashboard/projects/${location.pathname.split('/')[3]}/compare`, icon: <LineChartOutlined />, label: '结果对比' },
+    { key: `/dashboard/projects/${pid}/overview`, icon: <DesktopOutlined />, label: '概览' },
+    { key: `/dashboard/projects/${pid}/data-build`, icon: <FileOutlined />, label: '数据构建' },
+    { key: `/dashboard/projects/${pid}/datasets`, icon: <FileOutlined />, label: '数据集' },
+    { key: `/dashboard/projects/${pid}/model-build`, icon: <FileOutlined />, label: '模型构建' },
+    { key: `/dashboard/projects/${pid}/train`, icon: <LineChartOutlined />, label: '运行训练' },
+    { key: `/dashboard/projects/${pid}/experiments`, icon: <LineChartOutlined />, label: '实验记录' },
+    { key: `/dashboard/projects/${pid}/compare`, icon: <LineChartOutlined />, label: '结果对比' },
   ] : [
     { key: '/dashboard/projects', icon: <DesktopOutlined />, label: '项目首页' },
     { key: '/dashboard/data', icon: <FileOutlined />, label: '数据管理' },

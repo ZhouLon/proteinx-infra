@@ -1,0 +1,11 @@
+Metadata-Version: 2.4
+Name: proteinx_infra
+Version: 1
+Summary: AI4Protein infrastructure project v1
+Home-page: https://proteinx.com.cn
+Author: Zhou Long
+Author-email: proteinx@163.com
+Dynamic: author
+Dynamic: author-email
+Dynamic: home-page
+Dynamic: summary

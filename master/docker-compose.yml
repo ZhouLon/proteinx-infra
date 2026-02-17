@@ -10,18 +10,66 @@ services:
       dockerfile: Dockerfile
     pull_policy: never
     container_name: backend
-    ports:
-      - "${BACKEND_PORT:-8000}:8000" # 宿主机端口可配置，默认8000
     env_file:
       - .env
     environment:
       - WORKDIR_CONTAINER=${WORKDIR_CONTAINER:-/data}
+      - REDIS_URL=${REDIS_URL}
     volumes:
       - ${WORKDIR_HOST}:${WORKDIR_CONTAINER}
     restart: unless-stopped # 自动重启，除非手动停止
     networks:
       - px-net
 
+  redis-queue:
+    build:
+      context: ./queue
+      dockerfile: Dockerfile
+    container_name: redis-queue
+    env_file:
+      - .env
+    ports:
+      - "${REDIS_HOST_PORT}:${REDIS_PORT}"
+    volumes:
+      - ${WORKDIR_HOST}/redis:/data
+    command:
+      - "redis-server"
+      - "--appendonly"
+      - "${REDIS_AOF}"
+      - "--appendfsync"
+      - "${REDIS_AOF_FSYNC}"
+      - "--requirepass"
+      - "${REDIS_PASSWORD}"
+      - "--port"
+      - "${REDIS_PORT}"
+      - "--maxmemory"
+      - "${REDIS_MAXMEMORY}"
+      - "--maxmemory-policy"
+      - "${REDIS_EVICTION_POLICY}"
+    restart: unless-stopped
+    networks:
+      - px-net
+
+  rq-worker:
+    build:
+      context: ./queue
+      dockerfile: worker.Dockerfile
+    container_name: rq-worker
+    env_file:
+      - .env
+    environment:
+      - WORKDIR_CONTAINER=${WORKDIR_CONTAINER:-/data}
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis-queue:${REDIS_PORT}/0
+      - TRAINING_QUEUE_NAME=training-queue
+    volumes:
+      - ${WORKDIR_HOST}:${WORKDIR_CONTAINER}
+    depends_on:
+      - backend
+      - redis-queue
+    # 使用容器默认CMD启动Python脚本
+    restart: unless-stopped
+    networks:
+      - px-net
   frontend:
     # 前端服务：构建静态资源并由 Nginx 提供，/api 反代至 backend:8000
     build:

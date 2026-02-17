@@ -5,7 +5,7 @@ from typing import Tuple, Optional, Union, List, Dict
 from sklearn.model_selection import train_test_split
 import numpy as np
 
-from src.data.dataset import MyDataset
+
 
 def divide_by_ratio(
     feature: Tensor,
@@ -185,6 +185,7 @@ def divide_data(
 
 
 if __name__ == "__main__":
+    from infra.data.dataset import MyDataset
     # 测试数据: (nums, seq, emb_dim) = (100, 10, 16)
     np.random.seed(42)
     torch.manual_seed(42)

@@ -5,7 +5,7 @@ import Register from './pages/Register/Register';
 import MainLayout from './layouts/MainLayout';
 import DashboardHome from './pages/DashboardHome';
 import ProjectList from './pages/ProjectList';
-import { ProjectOverview, ProjectDataBuild, ProjectModelBuild, ProjectTrain, ProjectCompare, ProjectDatasets, ProjectDatasetDetail } from './pages/ProjectDetail';
+import { ProjectOverview, ProjectDataBuild, ProjectModelBuild, ProjectTrain, ProjectCompare, ProjectDatasets, ProjectDatasetDetail, ProjectExperiments, ProjectExperimentDetail } from './pages/ProjectDetail';
 import DataManagement from './pages/DataManagement';
 import TrainingMonitor from './pages/TrainingMonitor';
 import Docs from './pages/Docs';
@@ -69,6 +69,8 @@ const App: React.FC = () => {
             <Route path="datasets/:did" element={<ProjectDatasetDetail />} />
             <Route path="model-build" element={<ProjectModelBuild />} />
             <Route path="train" element={<ProjectTrain />} />
+            <Route path="experiments" element={<ProjectExperiments />} />
+            <Route path="experiments/:experimentId" element={<ProjectExperimentDetail />} />
             <Route path="compare" element={<ProjectCompare />} />
           </Route>
           <Route path="data" element={<DataManagement />} />
