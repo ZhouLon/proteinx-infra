@@ -23,6 +23,12 @@ AUTH_BAN_MINUTES = int(os.environ.get("AUTH_BAN_MINUTES", "30"))
 AUTH_BAN_LOG = os.path.join(WORKDIR, "logs", "auth_ban.log")
 AUTH_BAN_STATE = os.path.join(WORKDIR, "security", "auth_ban_state.json")
 
+REDIS_URL = os.environ.get("REDIS_URL", "redis://redis-queue:6379/0")
+JOB_QUEUE_NAME = os.environ.get("JOB_QUEUE_NAME", "job_queue")
+INIT_QUEUE_NAME = os.environ.get("INIT_QUEUE_NAME", "init-queue")
+STATE_QUEUE_NAME = os.environ.get("STATE_QUEUE_NAME", "state-queue")
+RESULT_QUEUE_NAME = os.environ.get("RESULT_QUEUE_NAME", "results-queue")
+
 os.makedirs(os.path.join(WORKDIR, "logs"), exist_ok=True)
 os.makedirs(os.path.join(WORKDIR, "security"), exist_ok=True)
 

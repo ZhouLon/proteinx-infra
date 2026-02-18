@@ -6,7 +6,7 @@ import os
 from fastapi import APIRouter, HTTPException
 from typing import List, Optional, Dict, Any
 from app.models import ProjectInfo, ProjectCreate, ProjectUpdate, ProjectDeleteParams, DatasetCreate, DatasetInfo
-from app.services.project_service import (
+from app.utils.projects import (
     projects_root, read_project_info, write_project_info,
     project_datasets_dir, create_dataset, list_datasets,
     delete_project_to_recycle

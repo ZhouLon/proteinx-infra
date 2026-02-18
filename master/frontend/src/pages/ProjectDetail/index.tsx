@@ -838,20 +838,29 @@ export const ProjectExperiments: React.FC = () => {
             <Button onClick={() => setStatus(undefined)} type={!status ? 'primary' : 'default'}>全部</Button>
             <Button onClick={() => setStatus('PENDING')} type={status === 'PENDING' ? 'primary' : 'default'}>待执行</Button>
             <Button onClick={() => setStatus('RUNNING')} type={status === 'RUNNING' ? 'primary' : 'default'}>执行中</Button>
-            <Button onClick={() => setStatus('SUCCEEDED')} type={status === 'SUCCEEDED' ? 'primary' : 'default'}>成功</Button>
+            <Button onClick={() => setStatus('COMPLETED')} type={status === 'COMPLETED' ? 'primary' : 'default'}>完成</Button>
             <Button onClick={() => setStatus('FAILED')} type={status === 'FAILED' ? 'primary' : 'default'}>失败</Button>
+            <Button onClick={() => setStatus('CANCELLED')} type={status === 'CANCELLED' ? 'primary' : 'default'}>取消</Button>
           </Space>
         </div>
         <Table
           dataSource={items}
-          rowKey={(r) => r.id}
+          rowKey={(r) => r.id || r.jid}
           loading={loading}
           columns={[
-            { title: '任务ID', dataIndex: 'id' },
-            { title: '创建时间', dataIndex: 'created_at' },
-            { title: '状态', dataIndex: 'status' },
-            { title: '进度', dataIndex: 'progress', render: (p: number) => (typeof p === 'number' ? `${p}%` : '—') },
-            { title: '耗时(ms)', dataIndex: 'elapsed_ms' },
+            { title: '任务ID', dataIndex: 'jid', render: (_: any, r: any) => r.jid || r.id },
+            { title: '实验名称', dataIndex: 'name' },
+            { title: '创建时间', dataIndex: 'created_at', render: (s: string) => formatDateOnlyGlobal(String(s || '')) },
+            { title: '状态', dataIndex: 'state', render: (s: number) => {
+              const m: Record<number, string> = { 0: '待执行', 1: '执行中', 2: '完成', 3: '失败', 4: '已取消' };
+              return m[Number(s)] ?? '—';
+            }},
+            { title: '进度', dataIndex: 'progress', render: (p: number, r: any) => {
+              if (Number(r?.state) === 0) return '待开始';
+              const m: Record<number, string> = { 0: '数据处理中', 1: '嵌入中', 2: '训练中', 3: '推理中', 4: '训练结束' };
+              return m[Number(p)] ?? '—';
+            }},
+            { title: '耗时(min)', dataIndex: 'used_time', render: (v: number) => (typeof v === 'number' ? v : '—') },
             { title: '操作', render: (_: any, r: any) => (<Button type="link" onClick={() => navigate(`/dashboard/projects/${pid}/experiments/${r.id}`)}>查看详情</Button>) }
           ]}
         />

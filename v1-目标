@@ -86,9 +86,18 @@ v1 目标
     模型权重
     结果张量
 
-todo
+
 
 bug
+目前saver不会根据state和result改jobs_info.json
+目前无法取消实验
+
+todo
+compute的设计仍未完成。需要好好设计一下。
+
+完善compute
+
+连接compute和master
 
 
 

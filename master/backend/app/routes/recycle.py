@@ -2,7 +2,7 @@
 回收站路由
 """
 from fastapi import APIRouter
-from app.services.project_service import (
+from app.utils.projects import (
     list_recycle_projects,
     restore_project_from_recycle,
     purge_recycle_item

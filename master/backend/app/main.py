@@ -16,8 +16,22 @@ from app.utils.security import ban_manager
 from app.config import WORKDIR
 
 import os
+import asyncio
+from app.services.saver import run_saver
 
-app = FastAPI(title="ProteinX Infra Master API", version="1.0.0")
+async def lifespan(app: FastAPI):
+    # 应用启动时的生命周期管理函数
+    # 负责在 FastAPI 应用启动和关闭时执行异步任务
+    # 此处启动后台保存服务（run_saver），并在应用关闭时优雅停止
+    stop_event = asyncio.Event()
+    task = asyncio.create_task(run_saver(stop_event))
+    try:
+        yield
+    finally:
+        stop_event.set()
+        await task
+
+app = FastAPI(title="ProteinX Infra Master API", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
