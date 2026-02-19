@@ -1,5 +1,4 @@
-flask
-sphinx
+lightning
 biopython
 matplotlib
 torch

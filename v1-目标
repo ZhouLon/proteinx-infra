@@ -95,7 +95,7 @@ bug
 todo
 compute的设计仍未完成。需要好好设计一下。
 
-完善compute
+完善compute,在本机测试。
 
 连接compute和master
 

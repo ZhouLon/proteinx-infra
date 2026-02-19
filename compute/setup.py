@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="proteinx_infra",
+    name="proteinx-infra",
     version="v1",
     packages=find_packages(),
     author="Zhou Long",
