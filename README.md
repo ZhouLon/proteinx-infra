@@ -21,7 +21,7 @@
 - 实验目录与产物归档、指标日志（metrics.jsonl）、检查点与报告
 
 **部署方法**
-- 管理端（推荐容器化）
+- 管理端（容器化部署）
   - 配置 .env（WORKDIR_HOST、WORKDIR_CONTAINER、后端端口等）
   - 执行 docker compose up -d（前端容器反代到后端容器；Redis 与队列消费者在同网络）
 - 计算端（两种安装方式）
@@ -30,12 +30,7 @@
   - 发行安装：
     - pip install proteinx-infra
 
-**开发与运行（计算端）**
-- 设置工作目录环境变量（用于脚本/配置与产物存放）
-  - Windows PowerShell：
-- 在工作目录编写配置与脚本
-  - 配置示例：workdir_compute/configs/flags.json（可参考 flags_example.json）
-  - 训练脚本：workdir_compute/scripts/train.py（调用 compute 库）
+
 
 
 

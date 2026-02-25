@@ -3,5 +3,5 @@
 /workdir_master/
 /workdir_compute/
 /others/
-/*.egg-info/
+*.egg-info/
 __pycache__/
