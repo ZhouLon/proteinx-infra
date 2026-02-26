@@ -4,7 +4,7 @@ import json
 
 
 
-class InfraParser:
+class TrainParser:
     def __init__(self):
         self.infra_parser = argparse.ArgumentParser(description='Parent parser for infra',add_help=False)
         self._init_parser()
@@ -36,7 +36,7 @@ class InfraParser:
         self.infra_parser.add_argument('exp_plan_path',type=str, help='实验的计划路径')
 
         # 可选的参数
-        self.infra_parser.add_argument('--debug',type=bool, default=False, help='是否开启debug模式')
+        self.infra_parser.add_argument('--debug', action='store_true', default=False, help='是否开启debug模式')
 
     def _check_parser(self, args: argparse.Namespace):
         # 先检查是否存在 exp_plan 属性
@@ -51,3 +51,29 @@ class InfraParser:
         return args
         
     
+class WorkdirParser:
+    def __init__(self):
+        self.parser = argparse.ArgumentParser(description='Infra 工作目录参数', add_help=False)
+        self._init_parser()
+        self.args = self.parser.parse_args()
+        self.args = self._check_parser(self.args)
+        self.arg_dict = vars(self.args)
+
+    def _init_parser(self):
+        self.parser.add_argument('--get', action='store_true', help='查询当前工作目录')
+        self.parser.add_argument('--set', type=str, default=None, help='设置工作目录路径')
+        self.parser.add_argument('--clear', action='store_true', help='清空工作目录设置')
+        self.parser.add_argument('--help', action='store_true', help='显示帮助信息')
+
+    def _check_parser(self, args: argparse.Namespace):
+        chosen = sum([
+            1 if args.get else 0,
+            1 if args.set is not None else 0,
+            1 if args.clear else 0,
+            1 if args.help else 0
+        ])
+        if chosen == 0:
+            raise ValueError("必须指定 --get 或 --set 或 --clear 或 --help 之一")
+        if chosen > 1:
+            raise ValueError("只能选择一个操作：--get 或 --set 或 --clear 或 --help")
+        return args

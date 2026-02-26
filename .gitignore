@@ -5,3 +5,4 @@
 /others/
 *.egg-info/
 __pycache__/
+/compute/infra/config

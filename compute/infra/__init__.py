@@ -1,20 +1,14 @@
-"""
-infra 包初始化模块
 
-职责：
-- 负责“工作目录（WORKDIR）”的全局管理与持久化读取/写入
-- 提供 set_workdir/get_workdir/require_workdir API 供运行期使用
-- 在包导入时尝试加载已有配置，实现无侵入的默认初始化
-
-设计要点：
-- CONFIG_PATH 指向持久化文件（默认：infra/config/config.json）
-- WORKDIR 为进程级全局变量，保存当前工作目录的即时值
-- 导入时仅尝试加载，不强制失败；真正需要工作目录的地方调用 require_workdir 校验
-"""
 
 import json
 from pathlib import Path  # 路径处理：跨平台、相对结构清晰
 import os  
+import sys
+import importlib.util
+import logging
+logger = logging.getLogger(__name__)
+
+logging.basicConfig(level=logging.INFO, format='[%(name)s] %(levelname)s: %(message)s')
 
 
 CONFIG_PATH = Path(__file__).parent / 'config' / 'workdir.json'  # 工作目录配置文件位置
@@ -46,6 +40,7 @@ def set_workdir(path: str):
     global WORKDIR
     WORKDIR = path
     CONFIG_PATH.write_text(json.dumps({'workdir': WORKDIR}, ensure_ascii=False), encoding='utf-8')
+    _auto_load_plugins()
 
 def get_workdir():
     """
@@ -55,7 +50,7 @@ def get_workdir():
     """
     with CONFIG_PATH.open('r', encoding='utf-8') as f:
         data = json.load(f)
-        return data.get('workdir')
+        return Path(data.get('workdir'))
 
 def require_workdir():
     """
@@ -68,3 +63,30 @@ def require_workdir():
     return WORKDIR
 
 create_workdir_config()  # 包导入时执行一次尝试加载
+
+def _import_py_modules_from_dir(dir_path: Path, ns_prefix: str):
+    if not dir_path.exists():
+        dir_path.mkdir(parents=True, exist_ok=True)
+        return
+    if not dir_path.is_dir():
+        return
+    for file in dir_path.glob('*.py'):
+        if file.name.startswith('_'):
+            continue
+        spec = importlib.util.spec_from_file_location(f'{ns_prefix}.{file.stem}', str(file))
+        if spec and spec.loader:
+            mod = importlib.util.module_from_spec(spec)
+            sys.modules[spec.name] = mod
+            spec.loader.exec_module(mod)
+
+def _auto_load_plugins():
+    
+    if WORKDIR is None:
+        logger.info("工作目录未设置，跳过插件加载。要加载插件，请先运行 infra-wkdir --set <workdir_path>来指定工作目录")
+        return
+    base = Path(WORKDIR)
+    _import_py_modules_from_dir(base / 'model', 'infra_ext.model')
+    _import_py_modules_from_dir(base / 'embed', 'infra_ext.embed')
+    _import_py_modules_from_dir(base / 'metrics', 'infra_ext.metrics')
+
+_auto_load_plugins()

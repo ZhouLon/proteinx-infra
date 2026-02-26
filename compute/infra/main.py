@@ -1,20 +1,36 @@
 import typing
 import os
 import logging
-from .parser import InfraParser
+from .parser import TrainParser, WorkdirParser
 import argparse
 import inspect
 from .training import run_train
 from . import set_workdir, get_workdir, require_workdir
 logger = logging.getLogger(__name__)
 
+# 配置基础日志格式，针对所有脚本
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+
 
 
 def train(args: typing.Optional[argparse.Namespace] = None)->None:
     if args is None:
-        parser = InfraParser()
+        parser = TrainParser()
         args = parser.args
         arg_dict = parser.arg_dict
+
+    # 设置全局日志级别
+    if arg_dict.get('debug', False):
+        logging.getLogger().setLevel(logging.DEBUG)
+        logging.debug("=== 调试模式已启用 ===")
+    else:
+        logging.getLogger().setLevel(logging.INFO)
+
+    #确保工作目录有加载
     require_workdir()
     
     arg_names = inspect.getfullargspec(run_train).args
@@ -27,27 +43,28 @@ def train(args: typing.Optional[argparse.Namespace] = None)->None:
     
 
 def workdir(args: typing.Optional[argparse.Namespace] = None) -> None:
-    parser = argparse.ArgumentParser(description='Infra 工作目录管理')
-    parser.add_argument('--get', action='store_true')
-    parser.add_argument('--set', type=str, default=None)
-    parser.add_argument('--clear', action='store_true')
-    parsed = parser.parse_args() if args is None else args
-    if parsed.clear:
-        set_workdir(None)  
-        print("已清空工作目录")
+    if args is None:
+        parser = WorkdirParser()
+        args = parser.args
+        arg_dict = parser.arg_dict
+
+    if arg_dict.get('clear'):
+        set_workdir(None)
+        logger.info("已清空工作目录")
         return
-    if parsed.set is not None:
-        p = os.path.abspath(parsed.set)
+    if arg_dict.get('set') is not None:
+        p = os.path.abspath(arg_dict['set'])
         os.makedirs(p, exist_ok=True)
         set_workdir(p)
-        print(f"已设置工作目录: {p}")
+        logger.info(f"已设置工作目录: {p}")
         return
-    if parsed.get:
+    if arg_dict.get('get'):
         wd = get_workdir()
-        print(f"当前工作目录: {wd}")
+        logger.info(f"当前工作目录: {wd}")
         return
-    print("使用 --get 查询，或 --set <path> 设置，或 --clear 清空")
+    if not arg_dict.get('help'):
+        logger.info("使用 --get 查询，或 --set <path> 设置，或 --clear 清空")
 
 if __name__ == "__main__":
     pass
-    pass
+
