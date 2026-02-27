@@ -32,7 +32,7 @@ IUPAC_VOCAB = OrderedDict([
     ("Y", 28),
     ("Z", 29)])
 
-database_header=['mutant','mutated_sequence','DMS_score','DMS_score_bin']
+
 
 if __name__ == "__main__":
-    print(IUPAC_VOCAB[0])
+    print(IUPAC_VOCAB["A"])

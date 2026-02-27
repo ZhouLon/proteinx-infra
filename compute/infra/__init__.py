@@ -88,5 +88,6 @@ def _auto_load_plugins():
     _import_py_modules_from_dir(base / 'model', 'infra_ext.model')
     _import_py_modules_from_dir(base / 'embed', 'infra_ext.embed')
     _import_py_modules_from_dir(base / 'metrics', 'infra_ext.metrics')
+    _import_py_modules_from_dir(base / 'vocab', 'infra_ext.vocab')
 
 _auto_load_plugins()

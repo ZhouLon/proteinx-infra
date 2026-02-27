@@ -102,4 +102,47 @@ compute的设计仍未完成。需要好好设计一下。
 
 
 
-
+def build_iupac_vocab(n_cls=2):
+    """
+    构建IUPAC氨基酸词表，确保每个token有唯一的递增ID
+    
+    参数:
+        n_cls (int): <cls> 标记的数量，默认为2
+    
+    返回:
+        OrderedDict: 词表映射字典，格式为 {token: unique_incrementing_id}
+    """
+    vocab = OrderedDict()
+    current_id = 0
+    
+    # 1. 基础特殊标记
+    vocab["<pad>"] = current_id
+    current_id += 1
+    
+    vocab["<mask>"] = current_id
+    current_id += 1
+    
+    # 2. 添加多个 <cls> 标记
+    for i in range(1, n_cls + 1):
+        vocab[f"<cls{i}>"] = current_id
+        current_id += 1
+    
+    # 3. 其他特殊标记
+    vocab["<sep>"] = current_id
+    current_id += 1
+    
+    vocab["<unk>"] = current_id
+    current_id += 1
+    
+    vocab["<sos>"] = current_id
+    current_id += 1
+    
+    vocab["<eos>"] = current_id
+    current_id += 1
+    
+    # 4. 添加26个字母
+    for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ":
+        vocab[letter] = current_id
+        current_id += 1
+    
+    return vocab

@@ -75,7 +75,7 @@ def create_dataset(pid: str, name: str, filters: List[Dict[str, Any]], table: Op
         id=did,
         name=name.strip(),
         filters=filters or [],
-        table=table,
+        table=real_table,
         created_at=now,
         rows_count=rows_count,
     )

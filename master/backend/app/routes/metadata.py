@@ -129,6 +129,7 @@ def metadata_query(table: Optional[str] = None, page: int = 1, per_page: int = M
     if filters:
         try:
             filters_obj = json.loads(filters)
+            print(1,table, filters_obj)
             if not isinstance(filters_obj, list):
                 filters_obj = None
         except Exception:
