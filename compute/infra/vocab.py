@@ -1,5 +1,6 @@
 import numpy as np
 from typing import List, Optional, Callable, Dict, Any
+from .registry import registry
 
 class BaseVocabProcessor:
     def policy(self) -> Dict[str, Any]:
@@ -25,13 +26,7 @@ class BaseVocabProcessor:
             out.append(arr)
         return out
 
-_REGISTRY: dict[str, Callable[[], BaseVocabProcessor]] = {}
-
-def register_vocab(name: str, factory: Callable[[], BaseVocabProcessor]) -> None:
-    _REGISTRY[name.strip().upper()] = factory
-
 def get_vocab_processor(name: Optional[str]) -> BaseVocabProcessor:
-    key = (name or "").strip().upper()
-    if key in _REGISTRY:
-        return _REGISTRY[key]()
-    raise RuntimeError(f"vocab_not_found {key}")
+    key = (name or "").strip()
+    cls = registry.get_vocab(key)
+    return cls()

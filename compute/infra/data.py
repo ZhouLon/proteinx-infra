@@ -88,8 +88,10 @@ def query_records(exp_plan: Dict[str, Any]) -> Dict[str, List[Dict[str, Any]]]:
     finally:
         conn.close()
 
+
 def build_dataframe(exp_plan: Dict[str, Any]) -> pd.DataFrame:
     rows_by_table = query_records(exp_plan)
+    log_rows_preview(rows_by_table)
     if not rows_by_table:
         return pd.DataFrame(columns=["id","mutant","DMS_score","DMS_score_bin","mut_num","source","source_text","sequence","sequence_text"])
     real_table = next(iter(rows_by_table.keys()))
@@ -129,12 +131,15 @@ def build_dataframe(exp_plan: Dict[str, Any]) -> pd.DataFrame:
         "mutant": [str(r.get("mutant")) if r.get("mutant") is not None else None for r in rows],
         "DMS_score": [np.asarray([float(r.get("DMS_score"))], dtype=np.float32) if r.get("DMS_score") is not None else np.asarray([0.0], dtype=np.float32) for r in rows],
         "DMS_score_bin": [str(r.get("DMS_score_bin")) if r.get("DMS_score_bin") is not None else None for r in rows],
-        "mut_num": [np.asarray([int(r.get("mut_num"))], dtype=np.int32) if r.get("mut_num") is not None else np.asarray([0], dtype=np.int32) for r in rows],
+        "mut_num": [int(r.get("mut_num")) if r.get("mut_num") is not None else 0 for r in rows],
         "source": [np.asarray([int(r.get("source"))], dtype=np.int32) if r.get("source") is not None else np.asarray([0], dtype=np.int32) for r in rows],
         "source_text": [str(r.get("source_text")) if r.get("source_text") is not None else None for r in rows],
         "sequence": seq_ids,
         "sequence_text": seq_text,
     })
+    preview = df.head(1).to_dict(orient="records")
+    logger.debug(f"dataframe:preview_first {preview}")
+    logger.info(f"dataframe:rows {df.shape[0]} cols {list(df.columns)}")
     return df
 
 def log_rows_preview(rows_by_table: Dict[str, List[Dict[str, Any]]]) -> None:
